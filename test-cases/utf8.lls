@@ -1,0 +1,88 @@
+Alright, let’s dive into some potential corner cases to ensure everything works smoothly! I'll give you a set of edge cases, including multi-byte characters and tricky inputs that might challenge your lexer:
+
+### 1. **Multi-byte Characters**
+
+UTF-8 uses variable-length encoding, so we should test multi-byte characters like `€`, `𐍈` (an ancient script), and emojis.
+
+```lls
+!démarrer_vidéo(0)
+
+À minute 1:45, le locuteur parle de l'impact de l'économie européenne sur les marchés mondiaux.
+!démarrer_clip(105.0)
+    "L'Europe doit s'unir pour affronter le défi économique mondial."
+    Symboles à tester: € (Euro), 🏴‍☠️ (pirate flag)
+!fin_clip(120.0)
+
+!fin_vidéo(0)
+```
+
+### 2. **Combining Characters**
+
+Some characters in Unicode are combining characters, which means they can be placed on top of other characters (e.g., accented characters like `é` with a combining accent). You might want to see how your lexer handles them.
+
+```lls
+!démarrer_vidéo(0)
+
+Le locuteur utilise le mot "hôtel" avec un accent aigu: "hôtel" (combinaison de caractères).
+!démarrer_clip(30.0)
+    Le mot "exposé" est également un exemple de combinaison de lettres.
+!fin_clip(45.0)
+
+!fin_vidéo(0)
+```
+
+### 3. **Non-printable or Control Characters**
+
+It's important to test for non-printable characters or those that may interfere with tokenization, like newlines or tab characters.
+
+```lls
+!démarrer_vidéo(0)
+
+Ce texte contient un retour à la ligne:
+    "Cela doit être bien pris en compte."
+Voici un tabulaire:\t"Important!"
+!fin_vidéo(0)
+```
+
+### 4. **Very Large Strings**
+
+Test long strings to check how the lexer handles large amounts of data or very long commands.
+
+```lls
+!démarrer_vidéo(0)
+
+!démarrer_clip(0.0)
+    "Ceci est un exemple de texte très long, utilisé pour tester le comportement du lexer quand il y a une grande quantité de texte qui dépasse les attentes habituelles. Ce texte devrait être pris en charge sans erreur ou exception, même s'il est bien plus long que ce que nous avons vu précédemment. "
+!fin_clip(30.0)
+
+!fin_vidéo(0)
+```
+
+### 5. **Mixed Character Sets**
+
+Combining non-latin scripts or symbols from various languages could also be a good test, especially when handling things like Arabic, Chinese, or Cyrillic characters mixed with Latin ones.
+
+```lls
+!démarrer_vidéo(0)
+
+La discussion aborde plusieurs perspectives : 
+    "We are standing in solidarity with the workers in France." (English)
+    "نحن نقف مع العمال في مصر" (Arabic)
+    "Рабочие должны объединяться!" (Cyrillic)
+!fin_vidéo(0)
+```
+
+### Expected Lexer Output
+
+For these cases, your lexer should:
+
+* **Correctly tokenize** the multi-byte characters (like `€` or `𐍈`).
+* **Handle combining characters** properly by treating them as a part of the character stream.
+* **Properly skip over non-printable characters** and treat them as separators or handle them accordingly.
+* **Gracefully handle long strings** without running into memory or overflow issues.
+* **Correctly parse mixed character sets**, treating each one as part of the input string.
+
+These are some corner cases that could help ensure the lexer is handling a variety of inputs robustly.
+
+Would you like to test these and see how your lexer responds, or would you prefer to move on to another part of the LLScript project?
+

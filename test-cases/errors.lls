@@ -1,0 +1,32 @@
+!start_clip(10, 20
+This should probably trip something.
+!end_clip()
+
+!start_video(("Too many", "layers"))
+
+!start_video()
+
+!start_clip("one", "two")
+
+!start_clip (  120 ,     180 )
+
+Some people say !end_clip() at minute 5 is powerful.
+
+Wow! That was incredible (especially the passion).
+
+!start_clip(
+    45,
+    78
+)
+
+!print("Hello from LLM!", 69)
+!printf("Hello from print2!", 42.5)
+
+!start_clip
+trueeeee
+true though
+true, though
+TRUE
+True ""
+!start_clip(0, 10) !end_clip()
+"this is a non-closing with escapes \" string ending in \
