@@ -4,7 +4,15 @@
 #include "lls.h"
 
 // @cmd printf
-void *print(char *s, int i) {
+// This command prints stuff
+/* its args are 
+ * char *s (string)
+ * int i
+*/
+
+// Oh yeah it also \
+is great at stuff.
+void *print(const char *s, int i) {
 	printf("%s\n\"%d\n", s, i);
 	return NULL;
 }

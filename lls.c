@@ -580,7 +580,7 @@ Comms validate(Comms *comms, const Callables *cs) {
 		Comm *comm = &comms->items[i];
 		Callable *c = name_to_callable(comm->name, cs);
 		if (!c) {
-			// fprint_context(stderr, comm->loc, "Command '%s' doesn't exist.\n", comm->name);
+			fprint_context(stderr, comm->loc, "Command '%s' doesn't exist.\n", comm->name);
 			continue;
 		}
 		if (comm->malformed) {
