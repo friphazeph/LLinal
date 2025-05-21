@@ -415,14 +415,22 @@ FnArgs parse_fnargs(Clex *l) {
 	return args;
 }
 
+typedef struct {
+	char **items;
+	size_t count;
+	size_t capacity;
+} FnNames;
+
 static char buf[16];
 StringBuilder *build_new_file(Clex *l, StringBuilder *sb) {
+	sb_append_cstr(sb, "#define __LLS_PREPROCESSED_FILE\n");
+	FnNames fnnames = {0};
 	size_t level = 0;
 	while(clex_next_token(l)) {
 		ClexToken tok = l->tok;
 		if (tok.sb_cstr.content[0] == '{') level++;
 		if (tok.sb_cstr.content[0] == '}') level--;
-		if (tok.kind == CLEXTOK_COMMENT) {
+		if (tok.kind == CLEXTOK_COMMENT && level == 0) {
 			sb_append_strn(sb, tok.sb_cstr.content, tok.len);
 			CmtMeta cm = get_comment_metadata(tok.sb_cstr.content);
 			if (cm.is_cmd) {
@@ -442,6 +450,7 @@ StringBuilder *build_new_file(Clex *l, StringBuilder *sb) {
 					exit(1);
 				}
 				char *fn_name = sb_new_cstr(&l->tok.sb_cstr);
+				da_append(&fnnames, fn_name);
 				clex_next_token(l);
 				if (l->tok.kind != CLEXTOK_SEPARATOR || l->tok.sb_cstr.content[0] != '(') {
 					fprint_context(stderr, l->tok.loc, "ERROR: '@cmd' tags can only come before 'void *' function declarations.\n");
@@ -453,13 +462,14 @@ StringBuilder *build_new_file(Clex *l, StringBuilder *sb) {
 					fprint_context(stderr, l->tok.loc, "ERROR: command functions must have a body.\n");
 					exit(1);
 				}
+				level++;
 
 				if (cm.name) {
-					sb_append_cstr(sb, "lls_declare_command_custom_name(\"");
+					sb_append_cstr(sb, "LLS_declare_command_custom_name(\"");
 					sb_append_cstr(sb, cm.name);
 					sb_append_cstr(sb, "\", ");
 				} else {
-					sb_append_cstr(sb, "lls_declare_command(\"");
+					sb_append_cstr(sb, "LLS_declare_command(\"");
 				}
 				sb_append_cstr(sb, fn_name);
 				sb_append_cstr(sb, ", ");
@@ -468,61 +478,85 @@ StringBuilder *build_new_file(Clex *l, StringBuilder *sb) {
 					sb_append_cstr(sb, ARGTYPE_STR[args.items[i].type]);
 					if (i < args.count - 1) sb_append_cstr(sb, ", ");
 				}
-				sb_append_cstr(sb, ") {\n");
+				sb_append_cstr(sb, ") {\n\t");
 				for (size_t i = 0; i < args.count; i++) {
 					switch (args.items[i].type) {
 						case ARG_STR: 
 							sb_append_cstr(sb, "char *");
 							sb_append_cstr(sb, args.items[i].name);
-							sb_append_cstr(sb, " = lls_arg_str(");
+							sb_append_cstr(sb, " = LLS_arg_str(");
 							break;
 						case ARG_INT: 
 							sb_append_cstr(sb, "int ");
 							sb_append_cstr(sb, args.items[i].name);
-							sb_append_cstr(sb, " = lls_arg_int(");
+							sb_append_cstr(sb, " = LLS_arg_int(");
 							break;
 						case ARG_FLT: 
 							sb_append_cstr(sb, "float ");
 							sb_append_cstr(sb, args.items[i].name);
-							sb_append_cstr(sb, " = lls_arg_flt(");
+							sb_append_cstr(sb, " = LLS_arg_flt(");
 							break;
 						case ARG_BOOL:
 							sb_append_cstr(sb, "bool ");
 							sb_append_cstr(sb, args.items[i].name);
-							sb_append_cstr(sb, " = lls_arg_bool(");
+							sb_append_cstr(sb, " = LLS_arg_bool(");
 							break;
 					}
 					sprintf(buf, "%zu", i);
 					sb_append_cstr(sb, buf);
-					sb_append_cstr(sb, ");\n");
+					sb_append_cstr(sb, ");\n\t");
 				}
 			}
 			free(cm.name);
 		} else {
-			sb_append_strn(sb, tok.sb_cstr.content, tok.len);
-			if (isspace(l->cur[0])) {
+			sb_append_cstr(sb, tok.sb_cstr.content);
+			while (clex_is_space(l)) {
 				sprintf(buf, "%c", l->cur[0]);
 				sb_append_cstr(sb, buf);
+					clex_chop_char(l);
 			}
 		}
 	}
+	sb_append_cstr(sb, "\nvoid __lls_preproc_register_commands(void) {\n");
+	for (size_t i = 0; i < fnnames.count; i++) {
+		sb_append_cstr(sb, "\tLLS_register_command(&__lls_preproc_callables, ");
+		sb_append_cstr(sb, fnnames.items[i]);
+		sb_append_cstr(sb, ");\n");
+
+	}
+	sb_append_cstr(sb, "}\n");
 
 	return sb;
 }
 
-int main(void) {
-	const char *file_in = "./commands.c";
-	const char *file_out = "./commands_preproc.c";
+void lls_preproc_and_rerun_file(const char *filename) {
 	StringBuilder file = {0};
 	StringBuilder out = {0};
 	Clex l = {0};
-	read_whole_file(&file, file_in);
-	clex_init(&l, file.content, file_in);
+	read_whole_file(&file, filename);
+	clex_init(&l, file.content, filename);
 	build_new_file(&l, &out);
-	printf("%s", out.content);
-
+	char filename_out[1024];
+	snprintf(filename_out, sizeof(filename_out), "%s.lls_preproc.c", filename);
+	FILE *f = fopen(filename_out, "w");
+	if (!f) {
+		fprintf(stderr, "Could create new file %s.\n", filename_out);
+		exit(1);
+	}
+	fputs(out.content, f);
+	fclose(f);
+	char command[4096];
+	snprintf(command, sizeof(command), "cc -o %s.lls_preproc %s.lls_preproc.c lls.o", filename, filename);
+	printf("%s\n", command);
+	system(command);
+	snprintf(command, sizeof(command), "chmod +x ./%s.lls_preproc && ./%s.lls_preproc", filename, filename);
+	printf("%s\n", command);
+	system(command);
+	snprintf(command, sizeof(command), "rm ./%s.lls_preproc.c ./%s.lls_preproc", filename, filename);
+	printf("%s\n", command);
+	system(command);
 	free(file.content);
 	free(out.content);
 	free(l.tok.sb_cstr.content);
-	return 0;
+	exit(0);
 }

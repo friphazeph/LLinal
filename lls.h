@@ -147,7 +147,9 @@ typedef struct {
 	size_t capacity;
 } lls_Callables;
 
+
 void lls_run_lls_file(const char *filename, const lls_Callables *c);
+void lls_preproc_and_rerun_file(const char *filename);
 
 #define LLS_declare_command(name, ...)                                     \
 	LLS_declare_command_custom_name("!" #name, name, __VA_ARGS__)
@@ -179,5 +181,16 @@ void lls_run_lls_file(const char *filename, const lls_Callables *c);
 #define LLS_arg_bool(i)          \
 	__LLS_args.items[i].value.b; \
 	assert(__LLS_args.items[i].type == ARG_BOOL)
+
+
+#ifndef __LLS_PREPROCESSED_FILE
+#define self_register_commands() lls_preproc_and_rerun_file(__FILE__)
+#define lls_run(filename) exit(0)
+#else // __LLS_PREPROCESSED_FILE 
+lls_Callables __lls_preproc_callables;
+void __lls_preproc_register_commands(void);
+#define lls_run(filename) lls_run_lls_file(filename, &__lls_preproc_callables)
+#define self_register_commands() __lls_preproc_register_commands()
+#endif // __LLS_PREPROCESSED_FILE
 
 #endif // __LLS_H
