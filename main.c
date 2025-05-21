@@ -6,7 +6,6 @@
 // @cmd !printf
 void *print(const char *s, int i) {
 	printf("%s\n%d\n", s, i);
-	return NULL;
 }
 
 int main(int argc, char **argv) {
