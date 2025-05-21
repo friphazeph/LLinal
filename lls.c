@@ -187,13 +187,14 @@ void fprint_context(FILE *fptr, Loc loc, const char *format, ...) {
     va_start(args, format);
 	vfprintf(fptr, format, args);
 	if (loc.prev_line_start) {
-		printf("%s", tab);
+		if (loc.row > 2) fprintf(fptr, "%4zu | ...\n", loc.row - 2 % 10000);
+		fprintf(fptr, "%4zu | ", loc.row - 1 % 10000);
 		print_line(fptr, loc.prev_line_start);
 	}
-	printf("%s", tab);
+	fprintf(fptr, "%4zu | ", loc.row % 10000);
 	print_line(fptr, loc.line_start);
-	for (size_t i = 1; i < loc.col; i++) putchar(' ');
-	printf("%s^\n", tab);
+	for (size_t i = 1; i < loc.col; i++) fputc(' ', fptr);
+	fprintf(fptr, "   %s^\n", tab);
 }
 
 typedef struct {

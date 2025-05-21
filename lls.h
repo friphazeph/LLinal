@@ -185,11 +185,12 @@ void lls_preproc_and_rerun_file(const char *filename);
 
 #ifndef __LLS_PREPROCESSED_FILE
 #define self_register_commands() lls_preproc_and_rerun_file(__FILE__)
-#define lls_run(filename) exit(0)
+#define lls_run(filename) self_register_commands(); exit(0)
 #else // __LLS_PREPROCESSED_FILE 
 lls_Callables __lls_preproc_callables;
 void __lls_preproc_register_commands(void);
-#define lls_run(filename) lls_run_lls_file(filename, &__lls_preproc_callables)
+#define lls_run(filename) self_register_commands();\
+	lls_run_lls_file(filename, &__lls_preproc_callables)
 #define self_register_commands() __lls_preproc_register_commands()
 #endif // __LLS_PREPROCESSED_FILE
 
