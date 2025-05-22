@@ -598,6 +598,7 @@ Comms validate(Comms *comms, const Callables *cs) {
 			fprint_context(stderr, comm->loc, "Command '%s' needs %zu arguments, but %zu were passed.\n", comm->name, c->signature.count, args.count);
 			continue;
 		}
+		bool valid_args = true;
 		for (int i = 0; i < args.count; i++) {
 			Arg *a = &args.items[i];
 			ArgType t = c->signature.items[i];
@@ -611,9 +612,10 @@ Comms validate(Comms *comms, const Callables *cs) {
 						ARGTYPE_STR[t],
 						i+1, nth(i+1),
 						ARGTYPE_STR[a->type]);
-				continue;
+				valid_args = false;
 			}
 		}
+		if (!valid_args) continue;
 		comm->f = c->fnptr; 
 		da_append(&valid_comms, *comm);
 	}
@@ -676,7 +678,7 @@ void run_lls_file(const char *filename, const Callables *c) {
 	free(l.tok.sb_cstr.content);
 }
 
-// ----- LLSpreproc -----
+// ===== LLSpreproc =====
 
 typedef enum {
 	CLEXTOK_END = 0,
@@ -712,6 +714,7 @@ typedef enum {
 	CLEXKW_INT,
 	CLEXKW_FLT,
 	CLEXKW_VOID,
+	CLEXKW_BOOL,
 	CLEXKW_CONST,
 	CLEXKW_STATIC,
 	CLEXKW_INLINE,
@@ -724,6 +727,7 @@ const char *CLEX_KEYWORDS[] = {
 	"int",
 	"float",
 	"void",
+	"bool",
 	"const",
 	"static",
 	"inline",
@@ -1073,15 +1077,16 @@ FnArgs parse_fnargs(Clex *l) {
 			case CLEXKW_CHAR:
 				clex_next_token(l);
 				if (l->tok.sb_cstr.content[0] != '*') {
-					fprint_context(stderr, l->tok.loc, "ERROR: command functions only accept argument types 'char *' 'int' and 'float'.\n");
+					fprint_context(stderr, l->tok.loc, "ERROR: command functions only accept argument types 'char *', 'int', 'bool' and 'float'.\n");
 					exit(1);
 				}
 				a.type = ARG_STR;
 				break;
 			case CLEXKW_INT: a.type = ARG_INT; break;
 			case CLEXKW_FLT: a.type = ARG_FLT; break;
+			case CLEXKW_BOOL: a.type = ARG_BOOL; break;
 			default:
-				fprint_context(stderr, l->tok.loc, "ERROR: command functions only accept argument types 'char *' 'int' and 'float'.\n");
+				fprint_context(stderr, l->tok.loc, "ERROR: command functions only accept argument types 'char *', 'int', 'bool' and 'float'.\n");
 				exit(1);
 		}
 		clex_next_token(l);
