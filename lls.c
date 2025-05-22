@@ -1211,26 +1211,32 @@ void lls_preproc_and_rerun_file(const char *filename) {
 	StringBuilder file = {0};
 	StringBuilder out = {0};
 	Clex l = {0};
+	char trimmed[1024];
+	strcpy(trimmed, filename);
+	trimmed[strlen(trimmed) - 2] = '\0';
+
 	read_whole_file(&file, filename);
 	clex_init(&l, file.content, filename);
 	build_new_file(&l, &out);
+
 	char filename_out[1024];
-	snprintf(filename_out, sizeof(filename_out), "%s.lls_preproc.c", filename);
+	snprintf(filename_out, sizeof(filename_out), "%s_lls_preproc.c", trimmed);
 	FILE *f = fopen(filename_out, "w");
 	if (!f) {
-		fprintf(stderr, "Could create new file %s.\n", filename_out);
+		fprintf(stderr, "Could create new file %s_lls_preproc.c\n", filename_out);
 		exit(1);
 	}
 	fputs(out.content, f);
 	fclose(f);
+
 	char command[4096];
-	snprintf(command, sizeof(command), "cc -o %s.lls_preproc %s.lls_preproc.c lls.o", filename, filename);
+	snprintf(command, sizeof(command), "cc -o %s %s lls.o", trimmed, filename_out);
 	printf("%s\n", command);
 	system(command);
-	snprintf(command, sizeof(command), "chmod +x ./%s.lls_preproc && ./%s.lls_preproc", filename, filename);
+	snprintf(command, sizeof(command), "chmod +x ./%s && ./%s", trimmed, trimmed);
 	printf("%s\n", command);
 	system(command);
-	snprintf(command, sizeof(command), "rm ./%s.lls_preproc.c ./%s.lls_preproc", filename, filename);
+	snprintf(command, sizeof(command), "rm %s", filename_out);
 	printf("%s\n", command);
 	system(command);
 	free(file.content);
