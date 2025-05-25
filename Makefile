@@ -1,8 +1,11 @@
-run : main
-	./main
+# run : main
+# 	./main ./test-cases/hello.lls
 
-main : main.c lls.h lls.o
-	cc -o main main.c lls.o
+main : main.c lls.o cli
+	./lls -c main.c main
+
+cli : lls-cli.c
+	cc -o lls lls-cli.c
 
 lls.o : lls.h lls.c
-	cc -o lls.o -c lls.c
+	cc -c -o lls.o lls.c

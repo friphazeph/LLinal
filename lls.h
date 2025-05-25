@@ -2,7 +2,7 @@
 #define __LLS_H
 
 #ifndef LLS_DEF_CAP
-#define LLS_DEF_CAP 1024
+#define LLS_DEF_CAP 16
 #endif // LLS_DEF_CAP
 
 #include <assert.h>
@@ -145,11 +145,12 @@ typedef struct {
 	lls_Callable *items;
 	size_t count;
 	size_t capacity;
+	void (* pre)(void);
+	void (* post)(void);
 } lls_Callables;
 
 
 void lls_run_lls_file(const char *filename, const lls_Callables *c);
-void lls_preproc_and_rerun_file(const char *filename);
 
 #define LLS_declare_command(name, ...)                                     \
 	LLS_declare_command_custom_name("!" #name, name, __VA_ARGS__)
@@ -166,32 +167,47 @@ void lls_preproc_and_rerun_file(const char *filename);
 		.fnptr = fnname,                                                   \
 	};                                                                     \
 	void *fnname(lls_Args __LLS_args)
+
+#define LLS_declare_pre  \
+	void __LLS_pre(void)
+	
+#define LLS_declare_post \
+	void __LLS_post(void)
+
+#define LLS_register_pre(callables) \
+	callables->pre = __LLS_pre;
+#define LLS_register_post(callables) \
+	callables->post = __LLS_pre;
 #define LLS_register_command(callables, fnname) \
-	assert(__LLS_##fnname##_call.name[0] == '!' && "command names must start with '!'"); \
+	assert(__LLS_##fnname##_call.name[0] == '!' && "ERROR: command names must start with '!'"); \
 	lls_da_append(callables, __LLS_##fnname##_call)
 #define LLS_arg_str(i)           \
-	__LLS_args.items[i].value.s; \
-	assert(__LLS_args.items[i].type == ARG_STR) 
+	(assert(__LLS_args.items[i].type == ARG_STR), __LLS_args.items[i].value.s)
 #define LLS_arg_int(j)           \
-	__LLS_args.items[j].value.i; \
-	assert(__LLS_args.items[j].type == ARG_INT)
+	(assert(__LLS_args.items[j].type == ARG_INT), __LLS_args.items[j].value.i)
 #define LLS_arg_flt(i)           \
-	__LLS_args.items[i].value.f; \
-	assert(__LLS_args.items[i].type == ARG_FLT)
+	(assert(__LLS_args.items[i].type == ARG_FLT), __LLS_args.items[i].value.f)
 #define LLS_arg_bool(i)          \
-	__LLS_args.items[i].value.b; \
-	assert(__LLS_args.items[i].type == ARG_BOOL)
+	(assert(__LLS_args.items[i].type == ARG_BOOL), __LLS_args.items[i].value.b)
 
 
-#ifndef __LLS_PREPROCESSED_FILE
-#define self_register_commands() lls_preproc_and_rerun_file(__FILE__)
-#define lls_run(filename) self_register_commands(); exit(0)
-#else // __LLS_PREPROCESSED_FILE 
-lls_Callables __lls_preproc_callables;
 void __lls_preproc_register_commands(void);
+#ifndef __LLS_PREPROCESSED_FILE
+
+static inline void __lls_noop_run(const char* filename) {
+    (void)filename;
+    fprintf(stderr, "Warning: LLScript run called from non-preprocessed file, ignoring...\n");
+}
+#define lls_run(filename) self_register_commands(); __lls_noop_run(filename)
+#define self_register_commands() ((void) 0)
+
+#else // __LLS_PREPROCESSED_FILE 
+	  
+lls_Callables __lls_preproc_callables;
 #define lls_run(filename) self_register_commands();\
 	lls_run_lls_file(filename, &__lls_preproc_callables)
 #define self_register_commands() __lls_preproc_register_commands()
+
 #endif // __LLS_PREPROCESSED_FILE
 
 #endif // __LLS_H
