@@ -1,4 +1,4 @@
 *.o
 *.so
 lls
-main
+man/*
