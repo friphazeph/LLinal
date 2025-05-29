@@ -578,7 +578,6 @@ void preproc_add_register(StringBuilder *sb, FnNames fnnames, FnLines fnlines, c
 
 StringBuilder *build_new_file(Clex *l, StringBuilder *sb, const char *og_file) {
 	sb_append_cstr(sb, "#define __LLS_PREPROCESSED_FILE\n");
-	sb_append_cstr(sb, "#include \"lls.h\"\n");
 	FnLines fnlines = {0};
 	FnNames fnnames = {0};
 	size_t level = 0;

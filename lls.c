@@ -689,7 +689,7 @@ void execute(Comms *comms) {
 }
 
 void run_lls_file(const char *filename, const Callables *c) {
-	if (c->count == 0) exit(0);
+	if (c->count == 0) return;
 	StringBuilder file = {0};
 	Lexer l = {0};
 	read_whole_file(&file, filename);
