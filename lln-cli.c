@@ -408,6 +408,10 @@ FnArgs parse_fnargs(Clex *l) {
 	while (l->tok.sb_cstr.content[0] != ')') {
 		FnArg a = {0};
 		clex_next_token(l);
+		if (l->tok.sb_cstr.content[0] == ')') {
+			assert(args.count == 0);
+			return args;
+		}
 		switch (l->tok.kw) {
 			case CLEXKW_CONST:
 				continue;
@@ -422,6 +426,14 @@ FnArgs parse_fnargs(Clex *l) {
 			case CLEXKW_INT: a.type = ARG_INT; break;
 			case CLEXKW_FLT: a.type = ARG_FLT; break;
 			case CLEXKW_BOOL: a.type = ARG_BOOL; break;
+			case CLEXKW_VOID: 
+                clex_next_token(l);
+				if (l->tok.sb_cstr.content[0] != ')') {
+					fprint_context(stderr, l->tok.loc, "ERROR: command functions only accept argument types 'char *', 'int', 'bool' and 'float'.\n");
+					exit(1);
+				}
+                assert(args.count == 0);
+                return args;
 			default:
 				fprint_context(stderr, l->tok.loc, "ERROR: command functions only accept argument types 'char *', 'int', 'bool' and 'float'.\n");
 				exit(1);
