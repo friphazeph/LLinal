@@ -1,39 +1,39 @@
 # Installation paths
 PREFIX     ?= /usr/local
 BINDIR     = $(PREFIX)/bin
-INCLUDEDIR = $(PREFIX)/include/lls
+INCLUDEDIR = $(PREFIX)/include/lln
 LIBDIR     = $(PREFIX)/lib
 
 # Build targets
-lls: lls-cli.c lls.o
-	cc -o lls lls-cli.c lls.o
+lln: lln-cli.c lln.o
+	cc -o lln lln-cli.c lln.o
 
-lls.o: lls.c lls.h
-	cc -c -o lls.o lls.c
+lln.o: lln.c lln.h
+	cc -c -o lln.o lln.c
 
-liblls.so: lls.c lls.h
-	cc -fPIC -shared -o liblls.so lls.c
+liblln.so: lln.c lln.h
+	cc -fPIC -shared -o liblln.so lln.c
 
 # Install everything
-install: lls liblls.so
+install: lln liblln.so
 	@echo "Installing binary to $(BINDIR)..."
 	mkdir -p $(BINDIR)
-	cp lls $(BINDIR)/lls
+	cp lln $(BINDIR)/lln
 
 	@echo "Installing header to $(INCLUDEDIR)..."
 	mkdir -p $(INCLUDEDIR)
-	cp lls.h $(INCLUDEDIR)/
+	cp lln.h $(INCLUDEDIR)/
 
 	@echo "Installing shared library to $(LIBDIR)..."
 	mkdir -p $(LIBDIR)
-	cp liblls.so $(LIBDIR)/
+	cp liblln.so $(LIBDIR)/
 
 # Clean generated files
 clean:
-	rm -f lls lls.o liblls.so
+	rm -f lln lln.o liblln.so
 
 # Uninstall everything
 uninstall:
-	rm -f $(BINDIR)/lls
-	rm -f $(LIBDIR)/liblls.so
+	rm -f $(BINDIR)/lln
+	rm -f $(LIBDIR)/liblln.so
 	rm -rf $(INCLUDEDIR)

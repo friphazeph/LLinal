@@ -1,0 +1,120 @@
+.\" lls.5 — LLScript language specification
+.\" Manual page written by Maxime Delhaye
+.Dd May 30, 2025
+.Dt LLS 5
+.Os
+.Sh NAME
+.Nm lls
+.Nd syntax of the LLScript interpreted command format
+.Sh DESCRIPTION
+.Nm LLScript
+is a minimal, natural-language-inspired scripting format for invoking
+programmer-defined commands with arguments.
+It is designed to be lexed and parsed by a simple runtime in C, with command
+execution delegated to statically registered functions.
+.Sh SYNTAX
+A script consists of zero or more
+.Em commands ,
+each beginning with an exclamation mark
+.Sq \&!
+followed by a command name and a parenthesized, comma-separated argument list:
+.Pp
+.Dl !command_name(arg1, arg2, ..., argN)
+.Pp
+Commands may be separated by newlines or comments.
+Comments are any non-keyword, non-command text, and are ignored.
+.Sh COMMANDS
+Each command must follow this structure:
+.Bl -bullet
+.It
+Start with a
+.Sq \&!
+character.
+.It
+Follow with a valid identifier (alphanumeric with underscores).
+.It
+Include an open parenthesis
+.Sq \&(
+, zero or more arguments separated by commas, and a closing parenthesis
+.Sq \&).
+.El
+.Sh ARGUMENTS
+Arguments to commands are comma-separated and may be one of:
+.Bl -tag -width "Boolean"
+.It String
+A sequence of characters inside double quotes, e.g.
+.Dq "hello world" .
+No escaping is supported.
+.It Integer
+A base-10 number, e.g.
+.Dq 42
+or
+.Dq -7 .
+.It Float
+A number with a decimal point, e.g.
+.Dq 3.14 ,
+.Dq 0.5 ,
+or
+.Dq .0 .
+.It Boolean
+The literal values
+.Dq true
+or
+.Dq false .
+Case-sensitive.
+.El
+.Sh GRAMMAR
+.Bl -tag -width Ds
+.It Script
+.Op Comment
+*(Command | Comment)
+.It Command
+.Dq \&!
+Identifier
+.Dq \&(
+.Op ArgList
+.Dq \&)
+.It ArgList
+Arg
+.Op
+{ ,
+Arg }
+.It Arg
+String | Integer | Float | Boolean
+.It String
+.Dq \&"
+non-quote characters
+.Dq \&"
+.It Integer
+digit+
+.It Float
+.Op digit+
+.Dq \&.
+digit+
+.It Boolean
+.Dq true | false
+.It Comment
+Any token not matching the command or keyword rules.
+.El
+.Sh EXAMPLES
+.Bd -literal -offset indent
+!print("hello", true)
+!set_health(100)
+!add_position(12, 8.5)
+just a comment
+!noop()
+.Ed
+.Sh DIAGNOSTICS
+All validation is deferred to the execution layer. Typical errors include:
+.Bl -bullet
+.It
+Unrecognized command names
+.It
+Malformed command syntax
+.It
+Invalid argument types or counts
+.El
+.Sh SEE ALSO
+.Xr lls 1
+.Sh AUTHORS
+Maxime Delhaye

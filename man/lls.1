@@ -1,0 +1,85 @@
+.TH lls 1 "2025-05-30" "LLScript CLI" "User Commands"
+
+.SH NAME
+lls \- LLScript command line interface tool
+
+.SH SYNOPSIS
+.B lls
+[\-p] [input_file.c] [output_file.c]
+
+.B lls
+[\-c] [input_file.c] [output_executable]
+
+.B lls
+[\-co] [input_file.c] [output_file.so]
+
+.B lls
+[\-ro] [input_file.lls] [input_file.so]
+
+.B lls
+[\-rc] [input_file.lls] [input_file.c]
+
+.SH DESCRIPTION
+The
+.B lls
+tool provides several modes to preprocess, compile, and run LLScript programs, a minimal glue layer that executes simple command scripts with strict programmer control.
+
+.TP
+.B \-p
+Preprocess a C source file with LLScript annotations, outputting a transformed C source file. This expands LLScript-specific commands and declarations.
+
+.TP
+.B \-c
+Preprocess and compile a C source file containing a main function into a self-contained executable.
+
+.TP
+.B \-co
+Preprocess and compile a main-less C source file into a shared object (.so) file.
+
+.TP
+.B \-ro
+Run an LLScript script (.lls file) using command implementations loaded from a shared object (.so file).
+
+.TP
+.B \-rc
+Run an LLScript script (.lls file) using command implementations compiled from an unprocessed main-less C source file.
+
+.SH EXAMPLES
+Preprocess a source file:
+.RS
+.lls
+$ lls -p input.c output.c
+.RE
+
+Compile and build an executable:
+.RS
+.lls
+$ lls -c input.c myprogram
+.RE
+
+Compile into a shared object:
+.RS
+.lls
+$ lls -co input.c libcommands.so
+.RE
+
+Run a script using a shared object:
+.RS
+.lls
+$ lls -ro script.lls libcommands.so
+.RE
+
+Run a script using unprocessed C source:
+.RS
+.lls
+$ lls -rc script.lls commands.c
+.RE
+
+.SH SEE ALSO
+.B lls-preproc(1)
+
+.SH BUGS
+Report bugs to the LLScript project repository.
+
+.SH AUTHOR
+Maxime Delhaye

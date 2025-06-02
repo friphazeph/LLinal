@@ -1,0 +1,176 @@
+.\" Manpage for lls-preproc
+.TH LLS-PREPROC 1 "May 2025" "LLScript Manual" "LLScript User Commands"
+
+.SH NAME
+lls-preproc \- LLScript preprocessor for command annotations
+
+.SH SYNOPSIS
+.B lls -p
+.I input.c
+.RI [ output.c ]
+
+.SH DESCRIPTION
+.B lls-preproc
+is a source-level preprocessor that parses special comment annotations in C files to generate runtime code required for LLScript integration. It processes functions marked with
+.B @cmd
+,
+.B @pre
+, and
+.B @post
+comment tags, transforming them into LLScript-compatible command handlers and lifecycle hooks.
+
+.SH COMMENT ANNOTATIONS
+
+The preprocessor recognizes special single-line comments that begin with
+.B @cmd
+,
+.B @pre
+, or
+.B @post
+. These must occur immediately before a valid function declaration with the expected signature and format.
+
+.TP
+.B @cmd [!name]
+Declares a function as an LLScript command.
+
+The function must be of the form:
+.PP
+.EX
+void *fnname(...);
+.EE
+.PP
+Optionally, a custom command name can be provided after
+.B @cmd
+(only names starting with \fB!\fR are valid). If no name is given, the function's name is used.
+
+Each argument must be a supported LLScript argument type (see below).
+
+Example:
+.PP
+.EX
+//@cmd !mycommand
+void *cmd_do_something(char *arg1, int arg2) {
+    ...
+}
+.EE
+
+.TP
+.B @pre
+Declares a function to be called before any command runs.
+
+The function must be of the form:
+.PP
+.EX
+void pre_fn(void);
+.EE
+
+.TP
+.B @post
+Declares a function to be called after any command runs.
+
+The function must be of the form:
+.PP
+.EX
+void post_fn(void);
+.EE
+
+.SH SUPPORTED ARGUMENT TYPES
+
+.B @cmd
+functions may only use arguments that correspond to built-in LLScript argument types:
+.TS
+l l.
+char *	arg_str
+int	arg_int
+float	arg_flt
+bool	arg_bool
+.TE
+
+The preprocessor emits code to initialize these variables from the LLScript runtime before the function body executes.
+
+.SH CODE GENERATION
+
+The preprocessor rewrites tagged functions with boilerplate code. Specifically:
+
+.TP
+.B Command Declaration
+Each
+.B @cmd
+function is wrapped in a call to
+.B LLS_declare_command(...)
+or
+.B LLS_declare_command_custom_name(...)
+depending on whether a custom name was provided.
+
+.TP
+.B Argument Initialization
+Each argument is automatically initialized using:
+.PP
+.EX
+char *arg = LLS_arg_str(index);
+int arg = LLS_arg_int(index);
+...
+.EE
+
+.TP
+.B Lifecycle Hooks
+Functions marked with
+.B @pre
+or
+.B @post
+are registered as:
+.PP
+.EX
+__lls_preproc_callables.pre = __LLS_pre;
+__lls_preproc_callables.post = __LLS_post;
+.EE
+
+.TP
+.B Registration Function
+At the end of the processed file, the function:
+.PP
+.EX
+void __lls_preproc_register_commands(void)
+.EE
+is emitted to register all commands and hooks with the LLScript runtime.
+
+.SH ERRORS
+
+The preprocessor is strict. It will exit with an error if:
+
+.TP
+.B \- A @cmd tag precedes a non-\fBvoid *\fR function
+.TP
+.B \- The function lacks a body
+.TP
+.B \- The function name does not start with '!'
+(if a custom name is given)
+.TP
+.B \- @pre/@post tags precede non-void->void functions
+
+Errors are reported with source context using the
+.B fprint_context(...)
+helper.
+
+.SH ENVIRONMENT
+
+None.
+
+.SH FILES
+
+.B input.c
+.RS
+Original annotated C source file.
+
+.B output.c
+.RS
+Transformed file, if output path is given.
+
+.SH SEE ALSO
+
+.BR lls (1),
+.BR gcc (1),
+.BR lld (1)
+
+.SH AUTHOR
+Maxime Delhaye
