@@ -177,7 +177,7 @@ void lls_run_lls_file(const char *filename, const lls_Callables *c);
 #define LLS_register_pre(callables) \
 	callables->pre = __LLS_pre;
 #define LLS_register_post(callables) \
-	callables->post = __LLS_pre;
+	callables->post = __LLS_post;
 #define LLS_register_command(callables, fnname) \
 	assert(__LLS_##fnname##_call.name[0] == '!' && "ERROR: command names must start with '!'"); \
 	lls_da_append(callables, __LLS_##fnname##_call)

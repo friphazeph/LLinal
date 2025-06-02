@@ -1,0 +1,4 @@
+// This is an intentional error test
+!int_field("invalid_number_field", "this_is_not_a_number")
+!add_language("es", 0) // Weight out of range
+!str_field("another_field") // Missing argument
