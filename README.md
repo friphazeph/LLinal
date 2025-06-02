@@ -47,11 +47,21 @@ This workflow enables reliable, deterministic bridging of LLM textual intent to 
 
 ---
 
-## Why Use LLinal?
+## Quick start
 
-* **Deterministic & Reliable:** Strict validation ensures that only well-formed and intended commands execute, improving trustworthiness of LLM-driven automation.
-* **Direct System Control:** Operating in C provides high performance and direct access to system resources.
-* **Clear Interface:** Provides a defined and extensible interface for LLMs to generate executable commands predictably.
+Clone the repository:
+```bash
+git clone https://github.com/friphazeph/LLinal.git
+```
+
+Compile:
+```bash
+cd LLinal && make
+```
+Optionally, install the CLI globally:
+```bash
+sudo make install
+```
 
 ---
 
