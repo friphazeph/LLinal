@@ -407,6 +407,9 @@ Arg parse_arg(Token t) {
 			break;
 		case TOK_KW_TRUE:
 			arg_bool_value = true;
+			a.type = ARG_BOOL;
+			a.value.b = arg_bool_value;
+			break;
 		case TOK_KW_FALSE:
 			a.type = ARG_BOOL;
 			a.value.b = arg_bool_value;
@@ -563,7 +566,7 @@ char *nth(size_t i) {
 
 Comms validate(Comms *comms, const Callables *cs) {
 	Comms valid_comms = {0};
-	for (int i = 0; i < comms->count; i++) {
+	for (size_t i = 0; i < comms->count; i++) {
 		Comm *comm = &comms->items[i];
 		Callable *c = name_to_callable(comm->name, cs);
 		if (!c) {
@@ -585,7 +588,7 @@ Comms validate(Comms *comms, const Callables *cs) {
 			continue;
 		}
 		bool valid_args = true;
-		for (int i = 0; i < args.count; i++) {
+		for (size_t i = 0; i < args.count; i++) {
 			Arg *a = &args.items[i];
 			ArgType t = c->signature.items[i];
 			Arg *cast = try_cast(a, t);

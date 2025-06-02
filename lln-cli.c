@@ -183,7 +183,7 @@ ClexToken *clex_next_token(Clex *l) {
 	clex_chop_while_predicate(l, clex_is_space);
 
 	if (l->cur[0] == '\0') {
-		l->tok.kind = TOK_END;
+		l->tok.kind = CLEXTOK_END;
 		l->tok.len = 0;
 		return NULL;
 	} 
@@ -230,7 +230,7 @@ ClexToken *clex_next_token(Clex *l) {
 	} else {
 		clex_chop_while_predicate(l, clex_is_not_sep);	
 		ClexKeyword k = clex_strn_to_keyword(t.start, (size_t) (l->cur - t.start));
-		if (k != -1) {
+		if (k != (ClexKeyword) -1) {
 			t.kw = k;
 			t.kind = CLEXTOK_KEYWORD;
 		} else {
@@ -243,7 +243,7 @@ ClexToken *clex_next_token(Clex *l) {
 	t.text_view = clextok_to_cstr(&t, &l->sb_tok_text);
 	l->tok = t;
 	if (t.len == 0) {
-		l->tok.kind = TOK_END;
+		l->tok.kind = CLEXTOK_END;
 		return NULL;
 	}
 	return &l->tok;
@@ -339,7 +339,7 @@ ComToken *comlex_next_token(Comlex *l) {
 	comlex_chop_while_predicate(l, comlex_is_space);
 
 	if (l->cur[0] == '\0') {
-		l->tok.kind = TOK_END;
+		l->tok.kind = COMTOK_END;
 		l->tok.len = 0;
 		return NULL;
 	} 
@@ -349,7 +349,7 @@ ComToken *comlex_next_token(Comlex *l) {
 	t.text_view = l->tok.text_view;
 	comlex_chop_while_predicate(l, comlex_is_not_space);	
 	CommentKeyword k = comlex_strn_to_keyword(t.start, (size_t) (l->cur - t.start));
-	if (k != -1) {
+	if (k != (CommentKeyword) -1) {
 		t.kw = k;
 		t.kind = COMTOK_KEYWORD;
 	} else {
