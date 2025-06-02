@@ -5,8 +5,8 @@ INCLUDEDIR = $(PREFIX)/include/lln
 LIBDIR     = $(PREFIX)/lib
 
 # Build targets
-lln: lln-cli.c lln.o
-	cc -o lln lln-cli.c lln.o
+lln: lln-cli.c lln.c
+	cc -o lln lln-cli.c
 
 lln.o: lln.c lln.h
 	cc -c -o lln.o lln.c
