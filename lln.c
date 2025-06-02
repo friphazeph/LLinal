@@ -1,5 +1,6 @@
 #define LLN_STRIP_PREFIX
 #include "lln.h"
+#include "lln-internal.h"
 
 // ===== UTILS =====
 
@@ -112,38 +113,6 @@ const char *read_whole_file(StringBuilder *sb, const char *filename) {
 
 // ===== LLN =====
 
-// ----- TokKind -----
-
-typedef enum {
-	TOK_END = 0,
-	TOK_COMMAND,
-	TOK_STR,
-	TOK_INT,
-	TOK_FLT,
-	TOK_OPAREN,
-	TOK_CPAREN,
-	TOK_COMMA,
-	TOK_KW_TRUE,
-	TOK_KW_FALSE,
-	TOK_COMMENT,
-	TOK_COUNT
-} TokKind;
-
-const char *TOKKIND_STR[] = {
-	"TOK_END",
-	"TOK_COMMAND",
-	"TOK_STR",
-	"TOK_INT",
-	"TOK_FLT",
-	"TOK_OPAREN",
-	"TOK_CPAREN",
-	"TOK_COMMA",
-	"TOK_KW_TRUE",
-	"TOK_KW_FALSE",
-	"TOK_COMMENT",
-	"TOK_COUNT"
-};
-
 // ----- Keyword -----
 
 typedef enum {
@@ -186,16 +155,6 @@ static inline TokKind kw_to_tokkind(Keyword kw) {
 }
 
 // ----- Loc -----
-
-typedef struct {
-	const char *filename;
-
-	size_t row;
-	size_t col;
-
-	const char *prev_line_start;
-	const char *line_start;
-} Loc;
 
 void print_line(FILE *fptr, const char* str) {
     while (*str && *str != '\n') {

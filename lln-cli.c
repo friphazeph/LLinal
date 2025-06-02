@@ -5,7 +5,9 @@
 #include <dlfcn.h>
 #include <time.h>
 
-#include "lln.c"
+#define LLN_STRIP_PREFIX
+#include "lln.h"
+#include "lln-internal.h"
 
 // ===== LLNpreproc =====
 
