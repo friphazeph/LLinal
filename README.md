@@ -17,7 +17,7 @@ LLinal provides a mechanism for LLMs to interact with the real world in a contro
   * **Strict Type & Signature Validation:** Command signatures are explicitly defined in C. At runtime, LLinal validates the types and number of arguments provided in an `.lln` script against these declared C function signatures.
   * **Modular Plugin System:** Custom commands are implemented as standard C functions and compiled into shared objects (`.so`). LLinal dynamically loads these plugins, providing a mechanism for extending functionality without modifying the core.
   * **Inert by default:** LLinal has *no* predefined commands. All execution is programmer-defined. This makes it safe by default, needing no sandboxing, but powerful if needed.
-  * **"Live-Execute-Die" Execution Model:** Each invocation of `lls -ro` operates as a single-shot process. It loads the necessary shared objects, executes the `.lln` script, and then terminates. This simplifies resource management and prevents state persistence across separate invocations.
+  * **"Live-Execute-Die" Execution Model:** Each invocation of `lln -ro` operates as a single-shot process. It loads the necessary shared objects, executes the `.lln` script, and then terminates. This simplifies resource management and prevents state persistence across separate invocations.
   * **Scripts *will* be read to the end:** If the script file was successfully opened, it will be read and interpreted to the end, unless a command function implementation crashes or exits on purpose. Execution is equivalent to calling the same functions with the same arguments in order.
   * **Custom C Preprocessor Integration:** LLinal leverages a custom C preprocessor, built into the `lln` CLI itself (`lln -p`), to automate command registration and argument signature extraction from C source files.
   * **Composability via Standard I/O:** LLinal focuses solely on command execution. It uses only `stderr` streams for communication back to the orchestrating system or LLM agent, aligning with a UNIX-like philosophy for tool integration.
@@ -84,7 +84,7 @@ void *print(char *s, int i) {
 
 Once commands are defined in your C source files, they are processed by the LLinal preprocessor and can be compiled into a `.so`. You can then create and execute `.lln` scripts.
 
-1.  **Ensure commands are built:** Run `lls -p [input.c] [output.c]` to use the custom preprocessor, then compile them to a `.so` yourself, or use the `lls -co [input.c] [output.so]` command to both preprocess and compile to a `.so`.
+1.  **Ensure commands are built:** Run `lln -p [input.c] [output.c]` to use the custom preprocessor, then compile them to a `.so` yourself, or use the `lln -co [input.c] [output.so]` command to both preprocess and compile to a `.so`.
 
 2.  **Create an LLinal script file (e.g., `hello.lln`):**
 
@@ -97,10 +97,10 @@ Once commands are defined in your C source files, they are processed by the LLin
     ```
     In a typical workflow, this would be LLM-generated.
 
-3.  **Run the script using `lls -ro`:**
+3.  **Run the script using `lln -ro`:**
 
     ```bash
-    ./lls -ro hello.lln [your_so_file.so]
+    ./lln -ro hello.lln [your_so_file.so]
     ```
 
     **Expected Output:**
