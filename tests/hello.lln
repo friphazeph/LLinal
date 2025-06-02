@@ -1,0 +1,10 @@
+You can have freeform text
+!printf("Hello from .lln!", 1)
+Around !printf("Hello from .lln!", 2) commands
+!printf(
+	"Hello from .lln!", Comments 
+	allowed 
+	in 
+	here
+	3 too
+)
