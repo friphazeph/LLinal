@@ -37,3 +37,6 @@ uninstall:
 	rm -f $(BINDIR)/lln
 	rm -f $(LIBDIR)/liblln.so
 	rm -rf $(INCLUDEDIR)
+
+tests: lln
+	cd tests && make
