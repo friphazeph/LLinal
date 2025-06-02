@@ -1,5 +1,5 @@
-#define LLS_STRIP_PREFIX
-#include "lls.h"
+#define LLN_STRIP_PREFIX
+#include "lln.h"
 
 // ===== UTILS =====
 
@@ -7,7 +7,7 @@
 
 int sb_reserve(StringBuilder *sb, size_t new_cap) {
 	if (sb->cap < new_cap) {
-		if (sb->cap == 0) sb->cap = LLS_DEF_CAP;
+		if (sb->cap == 0) sb->cap = LLN_DEF_CAP;
 		while (sb->cap < new_cap) sb->cap *= 2;
 		void *temp = realloc(sb->content, sb->cap * sizeof(char));
 		if (!temp) return -1;
@@ -88,7 +88,7 @@ const char *read_whole_file(StringBuilder *sb, const char *filename) {
 	size_t len = ftell(fd);
 	fseek(fd, 0, SEEK_SET);
 
-	if (sb->cap == 0) sb->cap = LLS_DEF_CAP;
+	if (sb->cap == 0) sb->cap = LLN_DEF_CAP;
 	while (sb->len + len >= sb->cap) sb->cap *= 2;
 	void *temp = realloc(sb->content, sb->cap * sizeof(char));
 	if (!temp) {
@@ -110,7 +110,7 @@ const char *read_whole_file(StringBuilder *sb, const char *filename) {
 	return sb->content;
 }
 
-// ===== LLS =====
+// ===== LLN =====
 
 // ----- TokKind -----
 
@@ -688,7 +688,7 @@ void execute(Comms *comms) {
 		comms->items[i].f(comms->items[i].args);
 }
 
-void run_lls_file(const char *filename, const Callables *c) {
+void run_lln_file(const char *filename, const Callables *c) {
 	if (c->count == 0) return;
 	StringBuilder file = {0};
 	Lexer l = {0};

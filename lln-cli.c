@@ -5,9 +5,9 @@
 #include <dlfcn.h>
 #include <time.h>
 
-#include "lls.c"
+#include "lln.c"
 
-// ===== LLSpreproc =====
+// ===== LLNpreproc =====
 
 typedef enum {
 	CLEXTOK_END = 0,
@@ -473,16 +473,16 @@ void preproc_add_prelude(StringBuilder *sb, FnArgs args) {
 	for (size_t i = 0; i < args.count; i++) {
 		switch (args.items[i].type) {
 			case ARG_STR: 
-				sb_appendf(sb, "\tchar *%s = LLS_arg_str(%zu);\n", args.items[i].name, i);
+				sb_appendf(sb, "\tchar *%s = LLN_arg_str(%zu);\n", args.items[i].name, i);
 				break;
 			case ARG_INT: 
-				sb_appendf(sb, "\tint %s = LLS_arg_int(%zu);\n", args.items[i].name, i);
+				sb_appendf(sb, "\tint %s = LLN_arg_int(%zu);\n", args.items[i].name, i);
 				break;
 			case ARG_FLT: 
-				sb_appendf(sb, "\tfloat %s = LLS_arg_flt(%zu);\n", args.items[i].name, i);
+				sb_appendf(sb, "\tfloat %s = LLN_arg_flt(%zu);\n", args.items[i].name, i);
 				break;
 			case ARG_BOOL:
-				sb_appendf(sb, "\tbool %s = LLS_arg_bool(%zu);\n", args.items[i].name, i);
+				sb_appendf(sb, "\tbool %s = LLN_arg_bool(%zu);\n", args.items[i].name, i);
 				break;
 		}
 	}
@@ -508,9 +508,9 @@ void preproc_parse_cmd(StringBuilder *sb, Clex *l, ClexToken tok, CmtMeta cm, Fn
 	}
 
 	if (cm.name) {
-		sb_appendf(sb, "LLS_declare_command_custom_name(\"%s\", ", cm.name);
+		sb_appendf(sb, "LLN_declare_command_custom_name(\"%s\", ", cm.name);
 	} else {
-		sb_appendf(sb, "LLS_declare_command(");
+		sb_appendf(sb, "LLN_declare_command(");
 	}
 	sb_appendf(sb, "%s, ", fnname);
 	for (size_t i = 0; i < args.count; i++) {
@@ -556,28 +556,28 @@ void preproc_parse_pre_post(StringBuilder *sb, Clex *l, CmtMeta cm) {
 	}
 
 	if (cm.kind == CMTKW_PRE) {
-		sb_appendf(sb, "LLS_declare_pre");
+		sb_appendf(sb, "LLN_declare_pre");
 	} else if (cm.kind == CMTKW_POST) {
-		sb_appendf(sb, "LLS_declare_post");
+		sb_appendf(sb, "LLN_declare_post");
 	}
 	sb_append_cstr(sb, " {\n");
 }
 
 void preproc_add_register(StringBuilder *sb, FnNames fnnames, FnLines fnlines, const char *og_file) {
-	sb_append_cstr(sb, "void __lls_preproc_register_commands(void) {\n");
-	if (fnnames.pre) sb_append_cstr(sb, "\t__lls_preproc_callables.pre = __LLS_pre;\n");
-	if (fnnames.post) sb_append_cstr(sb, "\t__lls_preproc_callables.post = __LLS_post;\n");
+	sb_append_cstr(sb, "void __lln_preproc_register_commands(void) {\n");
+	if (fnnames.pre) sb_append_cstr(sb, "\t__lln_preproc_callables.pre = __LLN_pre;\n");
+	if (fnnames.post) sb_append_cstr(sb, "\t__lln_preproc_callables.post = __LLN_post;\n");
 	for (size_t i = 0; i < fnnames.count; i++) {
 		sb_appendf(sb, "#line %zu \"%s\"\n", fnlines.items[i], og_file);
 		sb_appendf(sb,
-			"\tLLS_register_command(&__lls_preproc_callables, %s);\n",
+			"\tLLN_register_command(&__lln_preproc_callables, %s);\n",
 			fnnames.items[i]);
 	}
 	sb_append_cstr(sb, "}\n");
 }
 
 StringBuilder *build_new_file(Clex *l, StringBuilder *sb, const char *og_file) {
-	sb_append_cstr(sb, "#define __LLS_PREPROCESSED_FILE\n");
+	sb_append_cstr(sb, "#define __LLN_PREPROCESSED_FILE\n");
 	FnLines fnlines = {0};
 	FnNames fnnames = {0};
 	size_t level = 0;
@@ -632,7 +632,7 @@ int commandf(const char *fmt, ...) {
 	return system(cmd.content);
 }
 
-void lls_preproc_file(const char *file_in, const char *file_out) {
+void lln_preproc_file(const char *file_in, const char *file_out) {
 	StringBuilder file = {0};
 	StringBuilder out = {0};
 	Clex l = {0};
@@ -656,21 +656,21 @@ void lls_preproc_file(const char *file_in, const char *file_out) {
 	fclose(f);
 }
 
-void lls_preproc_and_compile_file(const char *file_in, const char *file_out) {
+void lln_preproc_and_compile_file(const char *file_in, const char *file_out) {
 	char tmp_name[64];
 	srand(time(NULL));
-	sprintf(tmp_name, "lls_preproc_tmp_%X.c", rand());
-	lls_preproc_file(file_in, tmp_name);
+	sprintf(tmp_name, "lln_preproc_tmp_%X.c", rand());
+	lln_preproc_file(file_in, tmp_name);
 
-	commandf("cc -o %s lls.o %s", file_out, tmp_name);
+	commandf("cc -o %s %s", file_out, tmp_name);
 	remove(tmp_name);
 }
 
-void lls_preproc_and_compile_to_so(const char *file_in, const char *file_out) {
+void lln_preproc_and_compile_to_so(const char *file_in, const char *file_out) {
 	char tmp_name[64];
 	srand(time(NULL));
-	sprintf(tmp_name, "lls_preproc_tmp_%X.c", rand());
-	lls_preproc_file(file_in, tmp_name);
+	sprintf(tmp_name, "lln_preproc_tmp_%X.c", rand());
+	lln_preproc_file(file_in, tmp_name);
 
 	commandf("cc -fPIC -shared -o %s %s", file_out, tmp_name);
 	remove(tmp_name);
@@ -693,7 +693,7 @@ void lls_preproc_and_compile_to_so(const char *file_in, const char *file_out) {
 	char *error = dlerror();
     if (error == NULL && main_func != NULL) {
         fprintf(stderr, "ERROR: `%s` contains a `main()` function.\n", file_in);
-        fprintf(stderr, "INFO: main functions are disallowed in LLS shared onject files.\n", file_in);
+        fprintf(stderr, "INFO: main functions are disallowed in LLN shared onject files.\n", file_in);
 		remove(file_out);
         dlclose(handle);
         exit(1);
@@ -701,7 +701,7 @@ void lls_preproc_and_compile_to_so(const char *file_in, const char *file_out) {
 	dlclose(handle);
 }
 
-void lls_run_from_so(char *lls_path, char *so_path) {
+void lln_run_from_so(char *lln_path, char *so_path) {
 	StringBuilder sb_so_path = {0};
 	if (so_path[0] != '/' && strncmp(so_path, "./", 2) != 0 && strncmp(so_path, "../", 3) != 0) {
 		sb_append_cstr(&sb_so_path, "./");
@@ -716,27 +716,27 @@ void lls_run_from_so(char *lls_path, char *so_path) {
 	}
 	dlerror();
 	void (*reg_comms)(void);
-	*(void **)(&reg_comms) = dlsym(handle, "__lls_preproc_register_commands");
+	*(void **)(&reg_comms) = dlsym(handle, "__lln_preproc_register_commands");
 	if (!reg_comms) {
 		fprintf(stderr, "%s\n", dlerror());
 		exit(1);
 	}
 	Callables *calls;
-	calls = (Callables *) dlsym(handle, "__lls_preproc_callables");
+	calls = (Callables *) dlsym(handle, "__lln_preproc_callables");
 	if (!calls) {
 		fprintf(stderr, "%s\n", dlerror());
 		exit(1);
 	}
 	(*reg_comms)();
-	lls_run_lls_file(lls_path, calls);
+	lln_run_lln_file(lln_path, calls);
 }
 
-void lls_run_from_c(char *lls_path, char *c_path) {
+void lln_run_from_c(char *lln_path, char *c_path) {
 	char tmp_name[64];
 	srand(time(NULL));
-	sprintf(tmp_name, "lls_preproc_tmp_%X.so", rand());
-	lls_preproc_and_compile_to_so(c_path, tmp_name);
-	lls_run_from_so(lls_path, tmp_name);
+	sprintf(tmp_name, "lln_preproc_tmp_%X.so", rand());
+	lln_preproc_and_compile_to_so(c_path, tmp_name);
+	lln_run_from_so(lln_path, tmp_name);
 	remove(tmp_name);
 }
 
@@ -756,10 +756,10 @@ void fprint_usage(FILE *f, const char *prog) {
 	fprintf(f, "      Preprocess and compile main-less C file to shared object (.so).\n\n");
 
 	fprintf(f, "Running:\n");
-	fprintf(f, "  %s -ro [input_file.lls] [input_file.so]\n", prog);
-	fprintf(f, "      Run .lls script using command implementations from shared object.\n");
-	fprintf(f, "  %s -rc [input_file.lls] [input_file.c]\n", prog);
-	fprintf(f, "      Run .lls script using command implementations from unprocessed main-less C source.\n");
+	fprintf(f, "  %s -ro [input_file.lln] [input_file.so]\n", prog);
+	fprintf(f, "      Run .lln script using command implementations from shared object.\n");
+	fprintf(f, "  %s -rc [input_file.lln] [input_file.c]\n", prog);
+	fprintf(f, "      Run .lln script using command implementations from unprocessed main-less C source.\n");
 }
 
 int main(int argc, char **argv) {
@@ -776,35 +776,35 @@ int main(int argc, char **argv) {
 			fprint_usage(stderr, program_name);
 			exit(1);
 		}
-		lls_preproc_file(argv[2], argv[3]);
+		lln_preproc_file(argv[2], argv[3]);
 	} else if (strcmp(arg, "-c") == 0) {
 		if (argc < 4) {
 			fprintf(stderr, "ERROR: Too few arguments.\n");
 			fprint_usage(stderr, program_name);
 			exit(1);
 		}
-		lls_preproc_and_compile_file(argv[2], argv[3]);
+		lln_preproc_and_compile_file(argv[2], argv[3]);
 	} else if (strcmp(arg, "-co") == 0) {
 		if (argc < 4) {
 			fprintf(stderr, "ERROR: Too few arguments.\n");
 			fprint_usage(stderr, program_name);
 			exit(1);
 		}
-		lls_preproc_and_compile_to_so(argv[2], argv[3]);
+		lln_preproc_and_compile_to_so(argv[2], argv[3]);
 	} else if (strcmp(arg, "-ro") == 0) {
 		if (argc < 4) {
 			fprintf(stderr, "ERROR: Too few arguments.\n");
 			fprint_usage(stderr, program_name);
 			exit(1);
 		}
-		lls_run_from_so(argv[2], argv[3]);
+		lln_run_from_so(argv[2], argv[3]);
 	} else if (strcmp(arg, "-rc") == 0) {
 		if (argc < 4) {
 			fprintf(stderr, "ERROR: Too few arguments.\n");
 			fprint_usage(stderr, program_name);
 			exit(1);
 		}
-		lls_run_from_c(argv[2], argv[3]);
+		lln_run_from_c(argv[2], argv[3]);
 	} else if (strcmp(arg, "-h") == 0) {
 		fprint_usage(stderr, program_name);
 		exit(0);

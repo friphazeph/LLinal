@@ -1,23 +1,23 @@
-.\" Manpage for lls-preproc
-.TH LLS-PREPROC 1 "May 2025" "LLScript Manual" "LLScript User Commands"
+.\" Manpage for lln-preproc
+.TH LLN-PREPROC 1 "May 2025" "LLinal Manual" "LLinal User Commands"
 
 .SH NAME
-lls-preproc \- LLScript preprocessor for command annotations
+lln-preproc \- LLinal preprocessor for command annotations
 
 .SH SYNOPSIS
-.B lls -p
+.B lln -p
 .I input.c
 .RI [ output.c ]
 
 .SH DESCRIPTION
-.B lls-preproc
-is a source-level preprocessor that parses special comment annotations in C files to generate runtime code required for LLScript integration. It processes functions marked with
+.B lln-preproc
+is a source-level preprocessor that parses special comment annotations in C files to generate runtime code required for LLinal integration. It processes functions marked with
 .B @cmd
 ,
 .B @pre
 , and
 .B @post
-comment tags, transforming them into LLScript-compatible command handlers and lifecycle hooks.
+comment tags, transforming them into LLinal-compatible command handlers and lifecycle hooks.
 
 .SH COMMENT ANNOTATIONS
 
@@ -31,7 +31,7 @@ The preprocessor recognizes special single-line comments that begin with
 
 .TP
 .B @cmd [!name]
-Declares a function as an LLScript command.
+Declares a function as an LLinal command.
 
 The function must be of the form:
 .PP
@@ -43,7 +43,7 @@ Optionally, a custom command name can be provided after
 .B @cmd
 (only names starting with \fB!\fR are valid). If no name is given, the function's name is used.
 
-Each argument must be a supported LLScript argument type (see below).
+Each argument must be a supported LLinal argument type (see below).
 
 Example:
 .PP
@@ -77,7 +77,7 @@ void post_fn(void);
 .SH SUPPORTED ARGUMENT TYPES
 
 .B @cmd
-functions may only use arguments that correspond to built-in LLScript argument types:
+functions may only use arguments that correspond to built-in LLinal argument types:
 .TS
 l l.
 char *	arg_str
@@ -86,7 +86,7 @@ float	arg_flt
 bool	arg_bool
 .TE
 
-The preprocessor emits code to initialize these variables from the LLScript runtime before the function body executes.
+The preprocessor emits code to initialize these variables from the LLinal runtime before the function body executes.
 
 .SH CODE GENERATION
 
@@ -97,9 +97,9 @@ The preprocessor rewrites tagged functions with boilerplate code. Specifically:
 Each
 .B @cmd
 function is wrapped in a call to
-.B LLS_declare_command(...)
+.B LLN_declare_command(...)
 or
-.B LLS_declare_command_custom_name(...)
+.B LLN_declare_command_custom_name(...)
 depending on whether a custom name was provided.
 
 .TP
@@ -107,8 +107,8 @@ depending on whether a custom name was provided.
 Each argument is automatically initialized using:
 .PP
 .EX
-char *arg = LLS_arg_str(index);
-int arg = LLS_arg_int(index);
+char *arg = LLN_arg_str(index);
+int arg = LLN_arg_int(index);
 ...
 .EE
 
@@ -121,8 +121,8 @@ or
 are registered as:
 .PP
 .EX
-__lls_preproc_callables.pre = __LLS_pre;
-__lls_preproc_callables.post = __LLS_post;
+__lln_preproc_callables.pre = __LLN_pre;
+__lln_preproc_callables.post = __LLN_post;
 .EE
 
 .TP
@@ -130,9 +130,9 @@ __lls_preproc_callables.post = __LLS_post;
 At the end of the processed file, the function:
 .PP
 .EX
-void __lls_preproc_register_commands(void)
+void __lln_preproc_register_commands(void)
 .EE
-is emitted to register all commands and hooks with the LLScript runtime.
+is emitted to register all commands and hooks with the LLinal runtime.
 
 .SH ERRORS
 
@@ -168,7 +168,7 @@ Transformed file, if output path is given.
 
 .SH SEE ALSO
 
-.BR lls (1),
+.BR lln (1),
 .BR gcc (1),
 .BR lld (1)
 

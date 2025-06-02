@@ -1,32 +1,32 @@
-.TH lls 1 "2025-05-30" "LLScript CLI" "User Commands"
+.TH lln 1 "2025-05-30" "LLinal CLI" "User Commands"
 
 .SH NAME
-lls \- LLScript command line interface tool
+lln \- LLinal command line interface tool
 
 .SH SYNOPSIS
-.B lls
+.B lln
 [\-p] [input_file.c] [output_file.c]
 
-.B lls
+.B lln
 [\-c] [input_file.c] [output_executable]
 
-.B lls
+.B lln
 [\-co] [input_file.c] [output_file.so]
 
-.B lls
-[\-ro] [input_file.lls] [input_file.so]
+.B lln
+[\-ro] [input_file.lln] [input_file.so]
 
-.B lls
-[\-rc] [input_file.lls] [input_file.c]
+.B lln
+[\-rc] [input_file.lln] [input_file.c]
 
 .SH DESCRIPTION
 The
-.B lls
-tool provides several modes to preprocess, compile, and run LLScript programs, a minimal glue layer that executes simple command scripts with strict programmer control.
+.B lln
+tool provides several modes to preprocess, compile, and run LLinal programs, a minimal glue layer that executes simple command scripts with strict programmer control.
 
 .TP
 .B \-p
-Preprocess a C source file with LLScript annotations, outputting a transformed C source file. This expands LLScript-specific commands and declarations.
+Preprocess a C source file with LLinal annotations, outputting a transformed C source file. This expands LLinal-specific commands and declarations.
 
 .TP
 .B \-c
@@ -38,48 +38,48 @@ Preprocess and compile a main-less C source file into a shared object (.so) file
 
 .TP
 .B \-ro
-Run an LLScript script (.lls file) using command implementations loaded from a shared object (.so file).
+Run an LLinal script (.lln file) using command implementations loaded from a shared object (.so file).
 
 .TP
 .B \-rc
-Run an LLScript script (.lls file) using command implementations compiled from an unprocessed main-less C source file.
+Run an LLinal script (.lln file) using command implementations compiled from an unprocessed main-less C source file.
 
 .SH EXAMPLES
 Preprocess a source file:
 .RS
-.lls
-$ lls -p input.c output.c
+.lln
+$ lln -p input.c output.c
 .RE
 
 Compile and build an executable:
 .RS
-.lls
-$ lls -c input.c myprogram
+.lln
+$ lln -c input.c myprogram
 .RE
 
 Compile into a shared object:
 .RS
-.lls
-$ lls -co input.c libcommands.so
+.lln
+$ lln -co input.c libcommands.so
 .RE
 
 Run a script using a shared object:
 .RS
-.lls
-$ lls -ro script.lls libcommands.so
+.lln
+$ lln -ro script.lln libcommands.so
 .RE
 
 Run a script using unprocessed C source:
 .RS
-.lls
-$ lls -rc script.lls commands.c
+.lln
+$ lln -rc script.lln commands.c
 .RE
 
 .SH SEE ALSO
-.B lls-preproc(1)
+.B lln-preproc(1)
 
 .SH BUGS
-Report bugs to the LLScript project repository.
+Report bugs to the LLinal project repository.
 
 .SH AUTHOR
 Maxime Delhaye
