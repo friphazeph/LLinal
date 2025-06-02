@@ -152,6 +152,7 @@ static inline TokKind kw_to_tokkind(Keyword kw) {
 		case KW_COUNT:
 			assert(false && "UNREACHABLE");
 	}	
+	return -1;
 }
 
 // ----- Loc -----

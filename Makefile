@@ -6,10 +6,10 @@ LIBDIR     = $(PREFIX)/lib
 
 # Build targets
 lln: lln-cli.c lln.o
-	cc -o lln lln-cli.c lln.o
+	cc -Wall -o lln lln-cli.c lln.o
 
 lln.o: lln.c lln.h
-	cc -c -o lln.o lln.c
+	cc -c -Wall -o lln.o lln.c
 
 liblln.so: lln.c lln.h
 	cc -fPIC -shared -o liblln.so lln.c

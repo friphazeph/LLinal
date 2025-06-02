@@ -18,20 +18,20 @@ typedef enum {
 	TOK_COUNT
 } TokKind;
 
-static const char *TOKKIND_STR[] = {
-	"TOK_END",
-	"TOK_COMMAND",
-	"TOK_STR",
-	"TOK_INT",
-	"TOK_FLT",
-	"TOK_OPAREN",
-	"TOK_CPAREN",
-	"TOK_COMMA",
-	"TOK_KW_TRUE",
-	"TOK_KW_FALSE",
-	"TOK_COMMENT",
-	"TOK_COUNT"
-};
+// static const char *TOKKIND_STR[] = {
+// 	"TOK_END",
+// 	"TOK_COMMAND",
+// 	"TOK_STR",
+// 	"TOK_INT",
+// 	"TOK_FLT",
+// 	"TOK_OPAREN",
+// 	"TOK_CPAREN",
+// 	"TOK_COMMA",
+// 	"TOK_KW_TRUE",
+// 	"TOK_KW_FALSE",
+// 	"TOK_COMMENT",
+// 	"TOK_COUNT"
+// };
 
 // ----- Loc -----
 

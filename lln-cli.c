@@ -296,7 +296,7 @@ typedef struct {
 	char *start;
 	size_t len;
 	ComTokKind kind;
-	ClexKeyword kw;
+	CommentKeyword kw;
 	char *text_view;
 } ComToken;
 
@@ -501,6 +501,7 @@ void preproc_add_prelude(StringBuilder *sb, FnArgs args) {
 			case ARG_BOOL:
 				sb_appendf(sb, "\tbool %s = LLN_arg_bool(%zu);\n", args.items[i].name, i);
 				break;
+			default: assert(false && "unreachable");
 		}
 	}
 }
@@ -618,6 +619,7 @@ StringBuilder *build_new_file(Clex *l, StringBuilder *sb, const char *og_file) {
 						fnnames.post = true;
 						preproc_parse_pre_post(sb, l, cm);
 						break;
+					default: assert(false && "unreachable");
 				}
 				level++;
 			}
@@ -710,7 +712,7 @@ void lln_preproc_and_compile_to_so(const char *file_in, const char *file_out) {
 	char *error = dlerror();
     if (error == NULL && main_func != NULL) {
         fprintf(stderr, "ERROR: `%s` contains a `main()` function.\n", file_in);
-        fprintf(stderr, "INFO: main functions are disallowed in LLN shared onject files.\n", file_in);
+        fprintf(stderr, "INFO: main functions are disallowed in LLN shared onject files.\n");
 		remove(file_out);
         dlclose(handle);
         exit(1);
