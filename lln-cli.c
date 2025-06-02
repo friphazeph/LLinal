@@ -80,8 +80,9 @@ typedef struct {
 	char *start;
 	size_t len;
 	ClexTokKind kind;
-	StringBuilder sb_cstr;
 	ClexKeyword kw;
+
+	char* text_view;
 } ClexToken;
 
 char *clextok_to_cstr(ClexToken *t, StringBuilder *sb) {
@@ -98,6 +99,7 @@ typedef struct {
 	Loc loc;
 
 	ClexToken tok;
+	StringBuilder sb_tok_text;
 } Clex;
 
 char *clex_chop_char(Clex *l) {
@@ -189,7 +191,7 @@ ClexToken *clex_next_token(Clex *l) {
 	ClexToken t = {0};
 	t.loc = l->loc;
 	t.start = l->cur;
-	t.sb_cstr = l->tok.sb_cstr;
+	t.text_view = l->tok.text_view;
 	if (l->cur[0] == '#') {
 		t.kind = CLEXTOK_CPREPROC;
 		clex_chop_while_predicate(l, clex_whole_line);
@@ -238,8 +240,8 @@ ClexToken *clex_next_token(Clex *l) {
 
 
 	t.len = l->cur - t.start;
+	t.text_view = clextok_to_cstr(&t, &l->sb_tok_text);
 	l->tok = t;
-	clextok_to_cstr(&t, &l->tok.sb_cstr);
 	if (t.len == 0) {
 		l->tok.kind = TOK_END;
 		return NULL;
@@ -294,8 +296,8 @@ typedef struct {
 	char *start;
 	size_t len;
 	ComTokKind kind;
-	StringBuilder sb_cstr;
 	ClexKeyword kw;
+	char *text_view;
 } ComToken;
 
 typedef struct {
@@ -303,6 +305,7 @@ typedef struct {
 
 	char *cur;
 	ComToken tok;
+	StringBuilder sb_tok_text;
 } Comlex;
 
 char *comtok_to_cstr(ComToken *t, StringBuilder *sb) {
@@ -343,7 +346,7 @@ ComToken *comlex_next_token(Comlex *l) {
 
 	ComToken t = {0};
 	t.start = l->cur;
-	t.sb_cstr = l->tok.sb_cstr;
+	t.text_view = l->tok.text_view;
 	comlex_chop_while_predicate(l, comlex_is_not_space);	
 	CommentKeyword k = comlex_strn_to_keyword(t.start, (size_t) (l->cur - t.start));
 	if (k != -1) {
@@ -354,8 +357,8 @@ ComToken *comlex_next_token(Comlex *l) {
 	}
 
 	t.len = l->cur - t.start;
+	t.text_view = comtok_to_cstr(&t, &l->sb_tok_text);
 	l->tok = t;
-	comtok_to_cstr(&t, &l->tok.sb_cstr);
 	if (t.len == 0) {
 		l->tok.kind = COMTOK_END;
 		return NULL;
@@ -384,7 +387,7 @@ CmtMeta get_comment_metadata(char *text) {
 			cmt.is_tag = true;
 			cmt.kind = l.tok.kw;
 			if (l.tok.kw == CMTKW_CMD) {
-				if (comlex_next_token(&l)) cmt.name = l.tok.sb_cstr.content;
+				if (comlex_next_token(&l)) cmt.name = l.tok.text_view;
 				return cmt;
 			}
 		}
@@ -405,10 +408,10 @@ typedef struct {
 
 FnArgs parse_fnargs(Clex *l) {
 	FnArgs args = {0};
-	while (l->tok.sb_cstr.content[0] != ')') {
+	while (l->tok.text_view[0] != ')') {
 		FnArg a = {0};
 		clex_next_token(l);
-		if (l->tok.sb_cstr.content[0] == ')') {
+		if (l->tok.text_view[0] == ')') {
 			assert(args.count == 0);
 			return args;
 		}
@@ -417,7 +420,7 @@ FnArgs parse_fnargs(Clex *l) {
 				continue;
 			case CLEXKW_CHAR:
 				clex_next_token(l);
-				if (l->tok.sb_cstr.content[0] != '*') {
+				if (l->tok.text_view[0] != '*') {
 					fprint_context(stderr, l->tok.loc, "ERROR: command functions only accept argument types 'char *', 'int', 'bool' and 'float'.\n");
 					exit(1);
 				}
@@ -428,7 +431,7 @@ FnArgs parse_fnargs(Clex *l) {
 			case CLEXKW_BOOL: a.type = ARG_BOOL; break;
 			case CLEXKW_VOID: 
                 clex_next_token(l);
-				if (l->tok.sb_cstr.content[0] != ')') {
+				if (l->tok.text_view[0] != ')') {
 					fprint_context(stderr, l->tok.loc, "ERROR: command functions only accept argument types 'char *', 'int', 'bool' and 'float'.\n");
 					exit(1);
 				}
@@ -440,7 +443,7 @@ FnArgs parse_fnargs(Clex *l) {
 		}
 		clex_next_token(l);
 		assert(l->tok.kind == CLEXTOK_SYMBOL);
-		a.name = sb_new_cstr(&l->tok.sb_cstr);
+		a.name = sb_new_cstr(&l->sb_tok_text);
 		clex_next_token(l);
 		da_append(&args, a);
 	}
@@ -472,7 +475,7 @@ void preproc_parse_cmd_fnsign(Clex *l, CmtMeta cm) {
 		exit(1);
 	}
 	clex_next_token(l);
-	if (l->tok.kind != CLEXTOK_SEPARATOR || l->tok.sb_cstr.content[0] != '*') {
+	if (l->tok.kind != CLEXTOK_SEPARATOR || l->tok.text_view[0] != '*') {
 		fprint_context(stderr, l->tok.loc, "ERROR: '@cmd' tags can only come before 'void *' function declarations.\n");
 		exit(1);
 	}
@@ -504,19 +507,19 @@ void preproc_add_prelude(StringBuilder *sb, FnArgs args) {
 
 void preproc_parse_cmd(StringBuilder *sb, Clex *l, ClexToken tok, CmtMeta cm, FnLines *fnlines, FnNames *fnnames) {
 	preproc_parse_cmd_fnsign(l, cm);
-	char *fnname = sb_new_cstr(&l->tok.sb_cstr);
+	char *fnname = sb_new_cstr(&l->sb_tok_text);
 	da_append(fnnames, fnname);
 	da_append(fnlines, tok.loc.row);
 
 	clex_next_token(l);
-	if (l->tok.kind != CLEXTOK_SEPARATOR || l->tok.sb_cstr.content[0] != '(') {
+	if (l->tok.kind != CLEXTOK_SEPARATOR || l->tok.text_view[0] != '(') {
 		fprint_context(stderr, l->tok.loc, "ERROR: '@cmd' tags can only come before 'void *' function declarations.\n");
 		exit(1);
 	}
 
 	FnArgs args = parse_fnargs(l);
 	clex_next_token(l);
-	if (l->tok.sb_cstr.content[0] != '{') {
+	if (l->tok.text_view[0] != '{') {
 		fprint_context(stderr, l->tok.loc, "ERROR: tagged functions must have a body.\n");
 		exit(1);
 	}
@@ -547,24 +550,24 @@ void preproc_parse_pre_post(StringBuilder *sb, Clex *l, CmtMeta cm) {
 		exit(1);
 	}
 	clex_next_token(l);
-	if (l->tok.kind != CLEXTOK_SEPARATOR || l->tok.sb_cstr.content[0] != '(') {
+	if (l->tok.kind != CLEXTOK_SEPARATOR || l->tok.text_view[0] != '(') {
 		fprint_context(stderr, l->tok.loc, "ERROR: '@pre'/'@post'  tags can only come before 'void' -> 'void' function declarations.\n");
 		exit(1);
 	}
 	clex_next_token(l);
 	if (l->tok.kw == CLEXKW_VOID) {
 		clex_next_token(l);
-		if (l->tok.kind != CLEXTOK_SEPARATOR || l->tok.sb_cstr.content[0] != ')') {
+		if (l->tok.kind != CLEXTOK_SEPARATOR || l->tok.text_view[0] != ')') {
 			fprint_context(stderr, l->tok.loc, "ERROR: '@pre'/'@post'  tags can only come before 'void' -> 'void' function declarations.\n");
 			exit(1);
 		}
-	} else if (l->tok.kind != CLEXTOK_SEPARATOR || l->tok.sb_cstr.content[0] != ')') {
+	} else if (l->tok.kind != CLEXTOK_SEPARATOR || l->tok.text_view[0] != ')') {
 		fprint_context(stderr, l->tok.loc, "ERROR: '@pre'/'@post'  tags can only come before 'void' -> 'void' function declarations.\n");
 		exit(1);
 	}
 
 	clex_next_token(l);
-	if (l->tok.sb_cstr.content[0] != '{') {
+	if (l->tok.text_view[0] != '{') {
 		fprint_context(stderr, l->tok.loc, "ERROR: tagged functions must have a body.\n");
 		exit(1);
 	}
@@ -597,11 +600,11 @@ StringBuilder *build_new_file(Clex *l, StringBuilder *sb, const char *og_file) {
 	size_t level = 0;
 	while(clex_next_token(l)) {
 		ClexToken tok = l->tok;
-		if (tok.sb_cstr.content[0] == '{') level++;
-		if (tok.sb_cstr.content[0] == '}') level--;
+		if (tok.text_view[0] == '{') level++;
+		if (tok.text_view[0] == '}') level--;
 		if (tok.kind == CLEXTOK_COMMENT && level == 0) {
-			sb_append_strn(sb, tok.sb_cstr.content, tok.len);
-			CmtMeta cm = get_comment_metadata(tok.sb_cstr.content);
+			sb_append_strn(sb, tok.text_view, tok.len);
+			CmtMeta cm = get_comment_metadata(tok.text_view);
 			if (cm.is_tag) {
 				switch(cm.kind) {
 					case CMTKW_CMD:
@@ -620,7 +623,7 @@ StringBuilder *build_new_file(Clex *l, StringBuilder *sb, const char *og_file) {
 			}
 			free(cm.name);
 		} else {
-			sb_append_cstr(sb, tok.sb_cstr.content);
+			sb_append_cstr(sb, tok.text_view);
 			while (clex_is_space(l)) {
 				sb_append(sb, l->cur[0]);
 				clex_chop_char(l);

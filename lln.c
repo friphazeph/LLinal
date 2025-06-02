@@ -186,7 +186,8 @@ typedef struct {
 	char *start;
 	size_t len;
 	TokKind kind;
-	StringBuilder sb_cstr;
+
+	char *text_view;
 } Token;
 
 char *tok_to_cstr(Token *t, StringBuilder *sb) {
@@ -205,6 +206,7 @@ typedef struct {
 	Loc loc;
 
 	Token tok;
+	StringBuilder sb_tok_text;
 } Lexer;
 
 char *lexer_chop_char(Lexer *l) {
@@ -264,7 +266,7 @@ Token *lexer_next_token(Lexer *l) {
 	Token t = {0};
 	t.loc = l->loc;
 	t.start = l->cur;
-	t.sb_cstr = l->tok.sb_cstr;
+	t.text_view = l->tok.text_view;
 	if (l->cur[0] == '!') {
 		t.kind = TOK_COMMAND;
 		lexer_chop_char(l); // chop leading '!'
@@ -303,8 +305,8 @@ Token *lexer_next_token(Lexer *l) {
 	}
 
 	t.len = l->cur - t.start;
+	t.text_view = tok_to_cstr(&t, &l->sb_tok_text);
 	l->tok = t;
-	tok_to_cstr(&t, &l->tok.sb_cstr);
 	if (t.len == 0) {
 		l->tok.kind = TOK_END;
 		return NULL;
@@ -396,11 +398,11 @@ Arg parse_arg(Token t) {
 			break;
 		case TOK_INT:
 			a.type = ARG_INT;
-			a.value.i = atoi(t.sb_cstr.content);
+			a.value.i = atoi(t.text_view);
 			break;
 		case TOK_FLT:
 			a.type = ARG_FLT;
-			a.value.f = atof(t.sb_cstr.content);
+			a.value.f = atof(t.text_view);
 			break;
 		case TOK_KW_TRUE:
 			arg_bool_value = true;
@@ -419,7 +421,7 @@ Comm parse_command(Lexer *l) {
 	Comm c = {0};
 	Args args = {0};
 	assert(l->tok.kind == TOK_COMMAND);
-	c.name = sb_new_cstr(&l->tok.sb_cstr);
+	c.name = sb_new_cstr(&l->sb_tok_text);
 	c.loc = l->tok.loc;
 	lexer_next_non_comment(l);
 	if (l->tok.kind != TOK_OPAREN) goto return_malformed;
@@ -661,6 +663,6 @@ void run_lln_file(const char *filename, const Callables *c) {
 	comms_free(&comms);
 	free(valid.items);
 	free(file.content);
-	free(l.tok.sb_cstr.content);
+	free(l.sb_tok_text.content);
 }
 
