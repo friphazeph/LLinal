@@ -1,71 +1,89 @@
 # LLinal: A C-Native Intent Execution Protocol for Language Models
 
-**LLinal Is Not A Language.** It functions as a minimalist, C-native system designed to serve as a bridge between Large Language Models (LLMs) and host system operations. LLinal enables LLMs to execute predefined commands, transforming textual intent into precise, callable C functions.
+**LLinal Is Not A Language.**
+It is a minimalist system implemented in C that acts as a bridge between Large Language Models (LLMs) and host system operations. LLinal allows LLMs to convert textual intent into calls to predefined C functions, enabling safe and deterministic execution of commands embedded within LLM output.
 
------
+---
 
 ## What is LLinal?
 
-LLinal provides a mechanism for LLMs to interact with the real world in a controlled and reliable manner. It processes `.lln` (LLinal) script files, which contain command invocations. LLinal's runtime parses these commands, validates their arguments against declared C function signatures, and dispatches them for execution. This process aims to ensure that only valid and intended operations are performed.
+LLinal enables LLMs to interact with the real world in a controlled manner by executing commands embedded in `.lln` script files. These scripts contain invocations of commands prefixed with `!` (e.g., `!printf("Hello", 42)`). LLinal parses these commands, validates their arguments against declared C function signatures, and executes the corresponding functions.
 
------
+This ensures that only well-defined and intended operations are performed, making LLM-driven automation more reliable and secure.
 
-## Key Features & Design Principles
+---
 
-  * **C-Native & Minimalist:** Implemented entirely in C to support efficiency and direct system control. The core components are designed for a small memory footprint and lean execution.
-  * **Robust Command Parsing:** LLinal's parser is designed to extract commands (`!command(...)`) from input, ignoring non-command text. This allows for commands to be embedded within verbose or varied LLM-generated outputs.
-  * **Strict Type & Signature Validation:** Command signatures are explicitly defined in C. At runtime, LLinal validates the types and number of arguments provided in an `.lln` script against these declared C function signatures.
-  * **Modular Plugin System:** Custom commands are implemented as standard C functions and compiled into shared objects (`.so`). LLinal dynamically loads these plugins, providing a mechanism for extending functionality without modifying the core.
-  * **Inert by default:** LLinal has *no* predefined commands. All execution is programmer-defined. This makes it safe by default, needing no sandboxing, but powerful if needed.
-  * **"Live-Execute-Die" Execution Model:** Each invocation of `lln -ro` operates as a single-shot process. It loads the necessary shared objects, executes the `.lln` script, and then terminates. This simplifies resource management and prevents state persistence across separate invocations.
-  * **Scripts *will* be read to the end:** If the script file was successfully opened, it will be read and interpreted to the end, unless a command function implementation crashes or exits on purpose. Execution is equivalent to calling the same functions with the same arguments in order.
-  * **Custom C Preprocessor Integration:** LLinal leverages a custom C preprocessor, built into the `lln` CLI itself (`lln -p`), to automate command registration and argument signature extraction from C source files.
-  * **Composability via Standard I/O:** LLinal focuses solely on command execution. It uses only `stderr` streams for communication back to the orchestrating system or LLM agent, aligning with a UNIX-like philosophy for tool integration.
+## Intended Workflow
 
------
+LLinal is designed to serve as the execution backend for Large Language Models. The typical workflow is:
 
-## Why LLinal? (Value Proposition)
+1. An LLM generates a `.lln` script — a plain text file containing a mix of free-form comments and executable commands prefixed with `!`.
+2. This `.lln` script is passed to the LLinal runtime (`lln`), along with the shared library containing the implementation of the commands.
+3. LLinal parses the script, validates commands and arguments, and executes them sequentially with full type safety.
+4. The process runs to completion and then exits, ensuring a clean, isolated execution environment for each script.
 
-  * **Reliable Execution:** LLinal provides a deterministic layer for LLM interactions. It enforces a contract between the LLM's output and system actions, ensuring that only valid and properly structured commands are executed.
-  * **Direct System Control:** By operating in C, LLinal offers direct access to system resources and performance control.
-  * **Clear Interface:** It provides a defined interface for LLMs to generate executable commands, contributing to more predictable LLM agent behavior.
+This workflow enables reliable, deterministic bridging of LLM textual intent to system-level operations with strict validation and safety.
 
------
+---
 
-## Getting Started
+## Key Features
 
-To get started with LLinal, you will need a C compiler (e.g., `gcc` or `clang`) and `make`.
+* **C-Native & Minimalist:** Fully implemented in C for efficiency and a small memory footprint.
+* **Robust Command Parsing:** Extracts commands prefixed by `!` while ignoring other text, allowing free-form output around commands.
+* **Strict Signature Validation:** Validates argument types and counts at runtime against declared C functions.
+* **Modular Plugin System:** Commands are compiled as shared objects (`.so`) and loaded dynamically, enabling flexible extension.
+* **Custom Preprocessor:** Automates command registration and argument signature extraction from C source files.
+* **LLM-Friendly Syntax:** Treats any line not starting with `!` as a comment, enabling natural language or reasoning interleaved with executable commands.
 
-1.  **Clone the repository:**
+---
 
-    ```bash
-    git clone https://github.com/friphazeph/LLinal.git
-    cd LLinal
-    ```
+## Design Philosophy
 
-2.  **Build LLinal:**
+* **Safety by Default:** No built-in commands exist; only programmer-defined commands run. This design eliminates unintended command execution risks without requiring sandboxing.
+* **Single-Run Execution Model:** Each invocation loads the necessary plugins, executes the `.lln` script fully, then terminates, preventing persistent state and simplifying resource management.
+* **Simplicity & Minimalism:** LLinal focuses on a lean runtime, avoiding complex parsing logic or persistent state across runs.
+* **Clear Contracts:** Enforces strict command signature validation to provide a deterministic, predictable interface between LLM output and system actions.
+* **Extensibility:** Plugin architecture encourages modular growth and flexibility without changes to the core runtime.
 
-    ```bash
-    make
-    ```
+---
 
-    This command compiles the `lln` executable and `liblln.so` library.
+## Why Use LLinal?
 
-3.  **Install LLinal (Optional, for system-wide access):**
+* **Deterministic & Reliable:** Strict validation ensures that only well-formed and intended commands execute, improving trustworthiness of LLM-driven automation.
+* **Direct System Control:** Operating in C provides high performance and direct access to system resources.
+* **Clear Interface:** Provides a defined and extensible interface for LLMs to generate executable commands predictably.
 
-    ```bash
-    sudo make install
-    ```
+---
 
-    This installs the `lln` executable to `/usr/local/bin` and `liblln.so` to `/usr/local/lib`.
+## Command Line Usage
 
------
+```bash
+# Preprocessing:
+lln -p  [input_file.c] [output_file.c]
+    # Preprocess a C source file, output another C source file.
+
+# Compilation:
+lln -c  [input_file.c] [output_executable]
+    # Preprocess and compile a C file with main() to a standalone executable.
+
+lln -co [input_file.c] [output_file.so]
+    # Preprocess and compile a main-less C file to a shared object (.so).
+
+# Running:
+lln -ro [input_file.lln] [input_file.so]
+    # Run an .lln script using commands from a compiled shared object.
+
+lln -rc [input_file.lln] [input_file.c]
+    # Run an .lln script using commands from unprocessed main-less C source.
+```
+
+---
 
 ## Defining Custom Commands
 
-Custom commands are defined as C functions within `.c` files. They use a specific `// @cmd` annotation or the `LLN_declare_command` macro to register them with LLinal.
+Commands are defined as C functions in `.c` files, registered with the `// @cmd` annotation or the `LLN_declare_command` macro.
 
-**Example: `src/commands/my_printer.c`**
+Example (`src/commands/my_printer.c`):
 
 ```c
 #include <lln/lln.h>
@@ -78,58 +96,59 @@ void *print(char *s, int i) {
 }
 ```
 
------
+---
 
-## Executing LLinal Scripts (`.lln`)
+## Executing LLinal Scripts
 
-Once commands are defined in your C source files, they are processed by the LLinal preprocessor and can be compiled into a `.so`. You can then create and execute `.lln` scripts.
+After defining commands:
 
-1.  **Ensure commands are built:** Run `lln -p [input.c] [output.c]` to use the custom preprocessor, then compile them to a `.so` yourself, or use the `lln -co [input.c] [output.so]` command to both preprocess and compile to a `.so`.
+1. Preprocess and compile your command source to a shared library:
 
-2.  **Create an LLinal script file (e.g., `hello.lln`):**
+```bash
+lln -co src/commands/my_printer.c my_commands.so
+```
 
-    ```lln
-    # This is a comment in an .lln script
-    # Any text not starting with '!' is ignored by the parser
+2. Create a `.lln` script, e.g., `hello.lln`:
 
-    !printf("Hello, world!", 42)
-    !printf("The answer is", 42)
-    ```
-    In a typical workflow, this would be LLM-generated.
+```lln
+# Comments start with '#'
+!printf("Hello, world!", 42)
+!printf("The answer is", 42)
+```
 
-3.  **Run the script using `lln -ro`:**
+3. Run your script:
 
-    ```bash
-    ./lln -ro hello.lln [your_so_file.so]
-    ```
+```bash
+lln -ro hello.lln my_commands.so
+```
 
-    **Expected Output:**
+Expected output:
 
-    ```
-    Hello, world!, 42
-    The answer is, 42
-    ```
+```
+Hello, world!, 42
+The answer is, 42
+```
 
------
+---
 
 ## Contributing
 
-Contributions are welcome. If you identify issues, have suggestions, or wish to contribute to the project, please open issues or submit pull requests on the GitHub repository.
+Contributions, bug reports, and suggestions are welcome! Please open issues or submit pull requests on GitHub.
 
------
+---
 
 ## License
 
-This project is licensed under the MIT License.
+MIT License — see the LICENSE file for details.
 
-See the LICENSE file for full details.
+---
 
-### Commercial Use & Inquiries
+## Commercial Use & Inquiries
 
-For commercial use scenarios, or if you are interested in potential collaboration, support, or partnership opportunities related to LLinal, please contact the author, Maxime Delhaye, at maxime.delhaye.md@gmail.com.
+For commercial use, collaboration, or support, contact Maxime Delhaye at [maxime.delhaye.md@gmail.com](mailto:maxime.delhaye.md@gmail.com).
 
------
+---
 
 ## Author
 
-**Maxime Delhaye** - [friphazeph](https://github.com/friphazeph)
+**Maxime Delhaye** — [friphazeph](https://github.com/friphazeph)
