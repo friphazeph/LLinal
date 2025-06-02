@@ -126,7 +126,7 @@ See the LICENSE file for full details.
 
 ### Commercial Use & Inquiries
 
-For commercial use scenarios, or if you are interested in potential collaboration, support, or partnership opportunities related to LLinal, please contact the author, Maxime Delhaye, at maxime.delhaye.md@gmail.com.his project is licensed under the **MIT License**.
+For commercial use scenarios, or if you are interested in potential collaboration, support, or partnership opportunities related to LLinal, please contact the author, Maxime Delhaye, at maxime.delhaye.md@gmail.com.
 
 -----
 
