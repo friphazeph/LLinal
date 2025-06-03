@@ -5,6 +5,24 @@ It is a minimalist system implemented in C that acts as a bridge between Large L
 
 ---
 
+## Quick start
+
+Clone the repository:
+```bash
+git clone https://github.com/friphazeph/LLinal.git
+```
+
+Compile:
+```bash
+cd LLinal && make
+```
+Optionally, install the CLI globally:
+```bash
+sudo make install
+```
+
+---
+
 ## What is LLinal?
 
 LLinal enables LLMs to interact with the real world in a controlled manner by executing commands embedded in `.lln` script files. These scripts contain invocations of commands prefixed with `!` (e.g., `!printf("Hello", 42)`). LLinal parses these commands, validates their arguments against declared C function signatures, and executes the corresponding functions.
@@ -44,24 +62,6 @@ This workflow enables reliable, deterministic bridging of LLM textual intent to 
 * **Simplicity & Minimalism:** LLinal focuses on a lean runtime, avoiding complex parsing logic or persistent state across runs.
 * **Clear Contracts:** Enforces strict command signature validation to provide a deterministic, predictable interface between LLM output and system actions.
 * **Extensibility:** Plugin architecture encourages modular growth and flexibility without changes to the core runtime.
-
----
-
-## Quick start
-
-Clone the repository:
-```bash
-git clone https://github.com/friphazeph/LLinal.git
-```
-
-Compile:
-```bash
-cd LLinal && make
-```
-Optionally, install the CLI globally:
-```bash
-sudo make install
-```
 
 ---
 
