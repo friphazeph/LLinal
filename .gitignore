@@ -1,3 +1,5 @@
 *.o
+**/__pycache__/**
+**/lln_build/**
 *.so
 lln
