@@ -657,7 +657,9 @@ int commandf(const char *fmt, ...) {
 	va_end(args);
 	sb_term(&cmd);
 	printf("%s\n", cmd.content);
-	return system(cmd.content);
+	int out = system(cmd.content);
+	free(cmd.content);
+	return out;
 }
 
 void lln_preproc_file(const char *file_in, const char *file_out) {
@@ -726,6 +728,7 @@ void lln_preproc_and_compile_to_so(const char *file_in, const char *file_out) {
         dlclose(handle);
         exit(1);
     }
+	free(sb_so_path.content);
 	dlclose(handle);
 }
 

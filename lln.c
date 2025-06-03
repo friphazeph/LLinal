@@ -211,7 +211,7 @@ void args_free(Args *args) {
 	for (size_t i = 0; i < args->count; i++) {
 		Arg a = args->items[i];
 		if(a.type == ARG_STR) free(a.value.s);
-		}
+	}
 	free(args->items);
 }
 
@@ -417,6 +417,7 @@ Arg parse_arg(Token t) {
 Comm *parse_command(Lexer *l) {
 	l->comm.args.count = 0;
 	assert(l->tok.kind == TOK_COMMAND);
+	free(l->comm.name);
 	l->comm.name = sb_new_cstr(&l->sb_tok_text);
 	l->comm.loc = l->tok.loc;
 	lexer_next_non_comment(l);
