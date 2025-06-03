@@ -739,7 +739,7 @@ void lln_run_from_so(char *lln_path, char *so_path) {
 	}
 	sb_append_cstr(&sb_so_path, so_path);
 	sb_term(&sb_so_path);
-	void *handle = dlopen(sb_so_path.content, RTLD_LAZY);
+	void *handle = dlopen(sb_so_path.content, RTLD_LAZY | RTLD_GLOBAL);
 	free(sb_so_path.content);
 	if (!handle) {
 		fprintf(stderr, "%s\n", dlerror());
