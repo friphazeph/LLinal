@@ -451,18 +451,22 @@ FnArgs parse_fnargs(Clex *l) {
 }
 
 typedef struct {
-	char **items;
-	size_t count;
-	size_t capacity;
-	bool pre;
-	bool post;
-} FnNames;
+	char *name;
+	size_t line;
+} PreprocFn;
 
 typedef struct {
-	size_t *items;
+	PreprocFn *items;
 	size_t count;
 	size_t capacity;
-} FnLines;
+	size_t pre_line;
+	size_t post_line;
+} FnData;
+
+void fndata_free(FnData *fns) {
+	for (size_t i = 0; i < fns->count; i++) free(fns->items[i].name);
+	free(fns->items);
+}
 
 void preproc_parse_cmd_fnsign(Clex *l, CmtMeta cm) {
 	if (cm.name && cm.name[0] != '!') {
@@ -506,11 +510,12 @@ void preproc_add_prelude(StringBuilder *sb, FnArgs args) {
 	}
 }
 
-void preproc_parse_cmd(StringBuilder *sb, Clex *l, ClexToken tok, CmtMeta cm, FnLines *fnlines, FnNames *fnnames) {
+void preproc_parse_cmd(StringBuilder *sb, Clex *l, ClexToken tok, CmtMeta cm, FnData *fns) {
 	preproc_parse_cmd_fnsign(l, cm);
-	char *fnname = sb_new_cstr(&l->sb_tok_text);
-	da_append(fnnames, fnname);
-	da_append(fnlines, tok.loc.row);
+	PreprocFn fn = {0};
+	fn.name = sb_new_cstr(&l->sb_tok_text);
+	fn.line = tok.loc.row;
+	da_append(fns, fn);
 
 	clex_next_token(l);
 	if (l->tok.kind != CLEXTOK_SEPARATOR || l->tok.text_view[0] != '(') {
@@ -530,7 +535,7 @@ void preproc_parse_cmd(StringBuilder *sb, Clex *l, ClexToken tok, CmtMeta cm, Fn
 	} else {
 		sb_appendf(sb, "LLN_declare_command(");
 	}
-	sb_appendf(sb, "%s, ", fnname);
+	sb_appendf(sb, "%s, ", fn.name);
 	for (size_t i = 0; i < args.count; i++) {
 		sb_appendf(sb, "ARG_%s", ARGTYPE_STR[args.items[i].type]);
 		if (i < args.count - 1) sb_append_cstr(sb, ", ");
@@ -581,23 +586,28 @@ void preproc_parse_pre_post(StringBuilder *sb, Clex *l, CmtMeta cm) {
 	sb_append_cstr(sb, " {\n");
 }
 
-void preproc_add_register(StringBuilder *sb, FnNames fnnames, FnLines fnlines, const char *og_file) {
+void preproc_add_register(StringBuilder *sb, FnData *fns, const char *og_file) {
 	sb_append_cstr(sb, "void __lln_preproc_register_commands(void) {\n");
-	if (fnnames.pre) sb_append_cstr(sb, "\t__lln_preproc_callables.pre = __LLN_pre;\n");
-	if (fnnames.post) sb_append_cstr(sb, "\t__lln_preproc_callables.post = __LLN_post;\n");
-	for (size_t i = 0; i < fnnames.count; i++) {
-		sb_appendf(sb, "#line %zu \"%s\"\n", fnlines.items[i], og_file);
+	if (fns->pre_line) {
+		sb_appendf(sb, "#line %zu \"%s\"\n", fns->pre_line, og_file);
+		sb_append_cstr(sb, "\t__lln_preproc_callables.pre = __LLN_pre;\n");
+	}
+	if (fns->post_line) {
+		sb_appendf(sb, "#line %zu \"%s\"\n", fns->pre_line, og_file);
+		sb_append_cstr(sb, "\t__lln_preproc_callables.post = __LLN_post;\n");
+	}
+	for (size_t i = 0; i < fns->count; i++) {
+		sb_appendf(sb, "#line %zu \"%s\"\n", fns->items[i].line, og_file);
 		sb_appendf(sb,
 			"\tLLN_register_command(&__lln_preproc_callables, %s);\n",
-			fnnames.items[i]);
+			fns->items[i].name);
 	}
 	sb_append_cstr(sb, "}\n");
 }
 
 StringBuilder *build_new_file(Clex *l, StringBuilder *sb, const char *og_file) {
 	sb_append_cstr(sb, "#define __LLN_PREPROCESSED_FILE\n");
-	FnLines fnlines = {0};
-	FnNames fnnames = {0};
+	FnData fns = {0};
 	size_t level = 0;
 	while(clex_next_token(l)) {
 		ClexToken tok = l->tok;
@@ -609,14 +619,14 @@ StringBuilder *build_new_file(Clex *l, StringBuilder *sb, const char *og_file) {
 			if (cm.is_tag) {
 				switch(cm.kind) {
 					case CMTKW_CMD:
-						preproc_parse_cmd(sb, l, tok, cm, &fnlines, &fnnames);
+						preproc_parse_cmd(sb, l, tok, cm, &fns);
 						break;
 					case CMTKW_PRE:
-						fnnames.pre = true;
+						fns.pre_line = l->tok.loc.row;
 						preproc_parse_pre_post(sb, l, cm);
 						break;
 					case CMTKW_POST:
-						fnnames.post = true;
+						fns.post_line = l->tok.loc.row;
 						preproc_parse_pre_post(sb, l, cm);
 						break;
 					default: assert(false && "unreachable");
@@ -632,10 +642,9 @@ StringBuilder *build_new_file(Clex *l, StringBuilder *sb, const char *og_file) {
 			}
 		}
 	}
-	preproc_add_register(sb, fnnames, fnlines, og_file);
-	free(fnnames.items);
-	free(fnlines.items);
+	preproc_add_register(sb, &fns, og_file);
 	sb_term(sb);
+	fndata_free(&fns);
 
 	return sb;
 }

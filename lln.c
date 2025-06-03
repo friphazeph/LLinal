@@ -198,6 +198,39 @@ char *tok_to_cstr(Token *t, StringBuilder *sb) {
 	return sb->content;
 }
 
+// ----- Arguments -----
+
+const char* ARGTYPE_STR[] = {
+	"INT",
+	"FLT",
+	"STR",
+	"BOOL",
+};
+
+void args_free(Args *args) {
+	for (size_t i = 0; i < args->count; i++) {
+		Arg a = args->items[i];
+		if(a.type == ARG_STR) free(a.value.s);
+		}
+	free(args->items);
+}
+
+// ----- Commands -----
+
+typedef struct {
+	char *name;
+	Args args;
+	bool malformed;
+
+	Loc loc;
+	CommandFnPtr f;
+} Comm;
+
+void comm_free(Comm *c) {
+	args_free(&c->args);
+	free(c->name);
+}
+
 // ----- Lexer -----
 
 typedef struct {
@@ -208,7 +241,14 @@ typedef struct {
 
 	Token tok;
 	StringBuilder sb_tok_text;
+
+	Comm comm;
 } Lexer;
+
+void lexer_free(Lexer *l) {
+	comm_free(&l->comm);
+	free(l->sb_tok_text.content);
+}
 
 char *lexer_chop_char(Lexer *l) {
 	if (l->cur[0] == '\0') return NULL;
@@ -328,53 +368,6 @@ void lexer_init(Lexer *l, const char *c, const char *f) {
 	};
 }
 
-// ----- Arguments -----
-
-const char* ARGTYPE_STR[] = {
-	"INT",
-	"FLT",
-	"STR",
-	"BOOL",
-};
-
-void args_free(Args *args) {
-	for (size_t i = 0; i < args->count; i++) {
-		Arg a = args->items[i];
-		if(a.type == ARG_STR) free(a.value.s);
-		}
-	free(args->items);
-}
-
-// ----- Commands -----
-
-typedef struct {
-	char *name;
-	Args args;
-	bool malformed;
-
-	Loc loc;
-	CommandFnPtr f;
-} Comm;
-
-void comm_free(Comm *c) {
-	args_free(&c->args);
-	free(c->name);
-}
-
-typedef struct {
-	Comm *items;
-	size_t count;
-	size_t capacity;
-} Comms;
-
-void comms_free(Comms *comms) {
-	for (size_t i = 0; i < comms->count; i++) {
-		Comm c = comms->items[i];
-		comm_free(&c);
-	}
-	free(comms->items);
-}
-
 // ----- parsing -----
 
 Token *lexer_next_non_comment(Lexer *l) {
@@ -421,19 +414,18 @@ Arg parse_arg(Token t) {
 	return a;
 }
 
-Comm parse_command(Lexer *l) {
-	Comm c = {0};
-	Args args = {0};
+Comm *parse_command(Lexer *l) {
+	l->comm.args.count = 0;
 	assert(l->tok.kind == TOK_COMMAND);
-	c.name = sb_new_cstr(&l->sb_tok_text);
-	c.loc = l->tok.loc;
+	l->comm.name = sb_new_cstr(&l->sb_tok_text);
+	l->comm.loc = l->tok.loc;
 	lexer_next_non_comment(l);
 	if (l->tok.kind != TOK_OPAREN) goto return_malformed;
 	while(1) {
 		lexer_next_non_comment(l);
 		if (l->tok.kind == TOK_CPAREN) break;
 		Arg arg = parse_arg(l->tok);
-		da_append(&args, arg);
+		da_append(&l->comm.args, arg);
 		if (arg.type == ARG_INVALID) goto return_malformed;
 
 		lexer_next_non_comment(l);
@@ -441,23 +433,20 @@ Comm parse_command(Lexer *l) {
 		else if (l->tok.kind == TOK_CPAREN) break;
 		else goto return_malformed;
 	}
-	c.args = args;
-	return c;
+	return &l->comm;
 return_malformed:
-	args_free(&args);
-	c.malformed = true;
-	return c;
+	l->comm.malformed = true;
+	return &l->comm;
 }
 
-Comms parse(Lexer *l) {
-	Comms comms = {0};
+Comm *lexer_next_command(Lexer *l) {
 	while(lexer_next_non_comment(l)) {
-		while (l->tok.kind == TOK_COMMAND) {
-			Comm comm = parse_command(l);
-			da_append(&comms, comm);
+		if (l->tok.kind == TOK_COMMAND) {
+			parse_command(l);
+			return &l->comm;
 		}
 	}
-	return comms;
+	return NULL;
 }
 
 // ----- validation -----
@@ -555,6 +544,7 @@ Arg *try_cast(Arg *a, ArgType t) {
 }
 
 char *nth(size_t i) {
+	if (i % 100 >= 11 && i % 100 <= 13) return "th";
 	switch (i % 10) {
 		case 0: return "th";
 		case 1: return "st";
@@ -564,109 +554,72 @@ char *nth(size_t i) {
 	}
 }
 
-Comms validate(Comms *comms, const Callables *cs) {
-	Comms valid_comms = {0};
-	for (size_t i = 0; i < comms->count; i++) {
-		Comm *comm = &comms->items[i];
-		Callable *c = name_to_callable(comm->name, cs);
-		if (!c) {
-			fprint_context(stderr, comm->loc, "Command '%s' doesn't exist.\n", comm->name);
-			continue;
-		}
-		if (comm->malformed) {
-			// TODO: Elaborate ? Maybe a malformation struct or enum idk
-			fprint_context(stderr, comm->loc, "Command '%s' is malformed.\n", comm->name);
-			continue;
-		}
-		Args args = comm->args;
-		if (args.count < c->signature.count) {
-			fprint_context(stderr, comm->loc, "Command '%s' needs %zu arguments, only %zu were passed.\n", comm->name, c->signature.count, args.count);
-			continue;
-		}
-		if (args.count > c->signature.count) {
-			fprint_context(stderr, comm->loc, "Command '%s' needs %zu arguments, but %zu were passed.\n", comm->name, c->signature.count, args.count);
-			continue;
-		}
-		bool valid_args = true;
-		for (size_t i = 0; i < args.count; i++) {
-			Arg *a = &args.items[i];
-			ArgType t = c->signature.items[i];
-			Arg *cast = try_cast(a, t);
-			if (!cast) {
-				fprint_context(
-						stderr, 
-						comm->loc, 
-						"Command '%s' expects %s as %zu%s argument, but %s was passed.\n", 
-						comm->name,
-						ARGTYPE_STR[t],
-						i+1, nth(i+1),
-						ARGTYPE_STR[a->type]);
-				valid_args = false;
-			}
-		}
-		if (!valid_args) continue;
-		comm->f = c->fnptr; 
-		da_append(&valid_comms, *comm);
+bool validate_command(Lexer *l, const Callables *cs) {
+	Comm *comm = &l->comm;
+	Callable *c = name_to_callable(comm->name, cs);
+	if (!c) {
+		fprint_context(stderr, comm->loc, "Command '%s' doesn't exist.\n", comm->name);
+		return false;
 	}
-	return valid_comms;
+	if (comm->malformed) {
+		// TODO: Elaborate ? Maybe a malformation struct or enum idk
+		fprint_context(stderr, comm->loc, "Command '%s' is malformed.\n", comm->name);
+		return false;
+	}
+	Args args = comm->args;
+	if (args.count < c->signature.count) {
+		fprint_context(stderr, comm->loc, "Command '%s' needs %zu arguments, only %zu were passed.\n", comm->name, c->signature.count, args.count);
+		return false;
+	}
+	if (args.count > c->signature.count) {
+		fprint_context(stderr, comm->loc, "Command '%s' needs %zu arguments, but %zu were passed.\n", comm->name, c->signature.count, args.count);
+		return false;
+	}
+	bool valid_args = true;
+	for (size_t i = 0; i < args.count; i++) {
+		Arg *a = &args.items[i];
+		ArgType t = c->signature.items[i];
+		Arg *cast = try_cast(a, t);
+		if (!cast) {
+			fprint_context(
+				stderr, 
+				comm->loc, 
+				"Command '%s' expects %s as %zu%s argument, but %s was passed.\n", 
+				comm->name,
+				ARGTYPE_STR[t],
+				i+1, nth(i+1),
+				ARGTYPE_STR[a->type]);
+			valid_args = false;
+		}
+	}
+	if (!valid_args) return false;
+	comm->f = c->fnptr; 
+	return true;
 }
-
-// ----- logging -----
-
-// void print_ast(Comms comms) {
-// 	for (size_t i = 0; i < comms.count; i++) {
-// 		Comm c = comms.items[i];
-// 		printf("%s(\n", c.name);
-// 		if (c.malformed) {
-// 			printf("    malformed\n)\n");
-// 			continue;
-// 		} 
-// 		for (size_t j = 0; j < c.args.count; j++) {
-// 			Arg a = c.args.items[j];	
-// 			printf("    %s,\n", arg_to_cstr(a));
-// 		}
-// 		printf(")\n");
-// 	}
-// }
-
-// static char buf[16];
-// char *arg_to_cstr(Arg a) {
-// 	switch (a.type) {
-// 		case ARG_COUNT: return "Invalid";
-// 		case ARG_INT: 
-// 			sprintf(buf, "%d", a.value.i); 
-// 			return buf;
-// 		case ARG_FLT: 
-// 			sprintf(buf, "%f", a.value.f); 
-// 			return buf;
-// 		case ARG_STR: 
-// 			return a.value.s;
-// 		case ARG_BOOL:
-// 			return a.value.b == true ? "true" : "false";
-// 	}
-// }
 
 // ----- running -----
 
-void execute(Comms *comms) {
-	for (size_t i = 0; i < comms->count; i++)
-		comms->items[i].f(comms->items[i].args);
+Comm *lexer_next_valid_comm(Lexer *l, const Callables *c) {
+	while (lexer_next_command(l) && !validate_command(l, c));
+	if (l->tok.kind == TOK_END) return NULL;
+	return &l->comm;
+}
+
+void execute(Lexer *l, const Callables *c) {
+	if (c->pre) c->pre();
+	if (c->count > 0) {
+		while(lexer_next_valid_comm(l, c)) l->comm.f(l->comm.args);
+	}
+	if (c->post) c->post();
 }
 
 void run_lln_file(const char *filename, const Callables *c) {
-	if (c->count == 0) return;
 	StringBuilder file = {0};
 	Lexer l = {0};
 	read_whole_file(&file, filename);
 	lexer_init(&l, file.content, filename);
-	Comms comms = parse(&l);
-	Comms valid = validate(&comms, c);
-	if (c->pre) c->pre();
-	execute(&valid);
-	if (c->post) c->post();
-	comms_free(&comms);
-	free(valid.items);
+	execute(&l, c);
 	free(file.content);
-	free(l.sb_tok_text.content);
+	lexer_free(&l);
 }
 
