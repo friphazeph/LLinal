@@ -415,7 +415,8 @@ Arg parse_arg(Token t) {
 }
 
 Comm *parse_command(Lexer *l) {
-	l->comm.args.count = 0;
+	args_free(&l->comm.args);
+	l->comm.args = (Args) {0};
 	assert(l->tok.kind == TOK_COMMAND);
 	free(l->comm.name);
 	l->comm.name = sb_new_cstr(&l->sb_tok_text);
