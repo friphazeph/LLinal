@@ -1,4 +1,4 @@
-LLN_EXEC = ../lln
+LLN_EXEC = lln
 TESTS := $(basename $(wildcard *.lln))
 
 .PHONY: all run setup expected clean
@@ -18,7 +18,7 @@ run-%: %.lln %.o %.exp
 %.o: %.c
 	$(LLN_EXEC) -co $< $@
 
-%.exp: %.lln %.o
+%.exp: %.lln 
 	$(LLN_EXEC) -ro $*.lln $*.o > $@
 
 clean:

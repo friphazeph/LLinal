@@ -1,4 +1,4 @@
-#include "../lln.h"
+#include <lln/lln.h>
 #include <stdio.h>
 
 // @cmd !printf <- you can use a reserved name that way
