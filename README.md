@@ -44,6 +44,12 @@ This workflow enables reliable, deterministic bridging of LLM textual intent to 
 
 ---
 
+## Demo
+
+https://github.com/user-attachments/assets/60949c97-c63d-4421-8f2b-0183f321b7a6
+
+---
+
 ## Key Features
 
 * **C-Native & Minimalist:** Fully implemented in C for efficiency and a small memory footprint.
