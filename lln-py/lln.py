@@ -63,12 +63,11 @@ def lln_run(lln_script_path: str, commands_py_path: str):
 
             compile_cmd = [
                 "cc", "-fPIC", "-shared", "-o", _GENERATED_SO_NAME, _C_GEN_FILE,
-                f"-I{python_include_dir}", # *** THIS IS THE CRUCIAL FIX ***
-                *parsed_cflags, # Add other CFLAGS obtained from sysconfig
-                # "-L/usr/lib", # This might already be covered by parsed_ldflags, remove if causing issues
-                "-lpython3.13", # Explicitly link against libpython
-                *parsed_ldflags, # Add LDFLAGS obtained from sysconfig
-                "-Wl,--no-as-needed", # Essential for linking Python symbols
+                f"-I{python_include_dir}",
+                *parsed_cflags,
+                "-lpython3.13",
+                *parsed_ldflags,
+                "-Wl,--no-as-needed",
                 "-Wl,--as-needed"
             ]
             print(f"[{__name__}] Compiling with: {' '.join(compile_cmd)}")
