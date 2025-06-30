@@ -1,5 +1,5 @@
 # Installation paths
-PREFIX     ?= /usr/local
+PREFIX     ?= /usr
 BINDIR     = $(PREFIX)/bin
 INCLUDEDIR = $(PREFIX)/include/lln
 LIBDIR     = $(PREFIX)/lib
@@ -12,7 +12,7 @@ lln.o: lln.c lln.h
 	cc -c -Wall -Wextra -o lln.o lln.c
 
 liblln.so: lln.c lln.h
-	cc -fPIC -shared -o liblln.so lln.c
+	cc -fPIC -shared -Wl,-soname,liblln.so.1 -o liblln.so lln.c
 
 # Install everything
 install: lln liblln.so
@@ -27,6 +27,8 @@ install: lln liblln.so
 	@echo "Installing shared library to $(LIBDIR)..."
 	mkdir -p $(LIBDIR)
 	cp liblln.so $(LIBDIR)/
+	cd $(LIBDIR) && ln -sf liblln.so liblln.so.1
+	ldconfig
 
 # Clean generated files
 clean:

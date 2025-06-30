@@ -14,6 +14,7 @@
 #include <stdarg.h>
 #include <ctype.h>
 
+// TODO: remove unused
 #ifdef LLN_STRIP_PREFIX
 #define StringBuilder lln_StringBuilder
 #define sb_append lln_sb_append
