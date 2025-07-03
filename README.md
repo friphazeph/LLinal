@@ -147,21 +147,15 @@ The answer is, 42
 
 ---
 
-## Contributing
-
-Contributions, bug reports, and suggestions are welcome! Please open issues or submit pull requests on GitHub.
-
----
-
 ## License
 
-MIT License — see the LICENSE file for details.
+LLinal is dual-licensed:
 
----
+- **Open Source:** under the GNU AGPLv3 License — see `LICENSE` for full terms. This requires that any software using LLinal, even over a network, must also be released under AGPL.
 
-## Commercial Use & Inquiries
+- **Commercial License:** available for closed-source, internal, or proprietary use. This allows companies to use LLinal without disclosing their source code.
 
-For commercial use, collaboration, or support, contact Maxime Delhaye at [maxime.delhaye.md@gmail.com](mailto:maxime.delhaye.md@gmail.com).
+Contact maxime.delhaye.md@gmail.com for pricing or commercial inquiries.
 
 ---
 
