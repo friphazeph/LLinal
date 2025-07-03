@@ -1,5 +1,6 @@
-import os, hashlib, importlib, inspect, subprocess, sys
+import os, hashlib, importlib.util, inspect, subprocess, sys
 from pathlib import Path
+from typing import Optional
 LLN_BUILD_DIR = Path("lln_build")
 LLN_BUILD_DIR.mkdir(exist_ok=True)
 GENERATED_SO = LLN_BUILD_DIR / "lln-py-plugin.so"
@@ -19,13 +20,13 @@ def calculate_checksum(filepath):
     with open(filepath, 'rb') as f:
         return hashlib.md5(f.read()).hexdigest()
 
-def gen_c(commands_py_path: str, output_c: str):
+def gen_c(output_c: Path):
     write_c_file(output_c)
 
     if _LOG:
         print(f"[{__name__}] Generated C wrapper: {output_c}")
 
-def needs_rebuild(commands_py_path: str, output_so: str) -> bool:
+def needs_rebuild(commands_py_path: Path, output_so: Path) -> bool:
     current_checksum = calculate_checksum(commands_py_path)
     try:
         with open(CHECKSUM_FILE, 'r') as f:
@@ -34,13 +35,13 @@ def needs_rebuild(commands_py_path: str, output_so: str) -> bool:
         return True
     return not os.path.exists(output_so) or current_checksum != previous_checksum
 
-def store_checksum(commands_py_path: str):
+def store_checksum(commands_py_path: Path):
     with open(CHECKSUM_FILE, 'w') as f:
         f.write(calculate_checksum(commands_py_path))
 
-def compile_plugin(c_file: str, output_so: str):
+def compile_plugin(c_file: Path, output_so: Path):
     compile_cmd = [
-        "lln", "-co", c_file, output_so
+        "lln", "-co", str(c_file), str(output_so)
     ]
     if _LOG:
         print(f"[{__name__}] Compiling with: {' '.join(compile_cmd)}")
@@ -53,16 +54,9 @@ def compile_plugin(c_file: str, output_so: str):
 def raise_runtime(message: str):
     raise RuntimeError(f"[{__name__}] {message}")
 
-def compile(commands_py_path: str, output_so: str):
-    if not needs_rebuild(commands_py_path, output_so):
-        if _LOG:
-            print(f"[{__name__}] Commands unchanged. Using existing plugin: {output_so}")
-        return
+def compile(commands_py_path: Path, output_so: Path):
 
-    if _LOG:
-        print(f"[{__name__}] Commands changed or plugin not found. Regenerating and recompiling...")
-
-    gen_c(commands_py_path, C_GEN_FILE)
+    gen_c(C_GEN_FILE)
 
     try:
         compile_plugin(C_GEN_FILE, output_so)
@@ -265,7 +259,7 @@ def unpack_args(args_struct: Args):
             raise ValueError(f"Unknown arg type {t}")
     return py_args
 
-def execute(lln_script_path: str, commands_py_path: str):
+def execute(lln_script_path: str):
     so_path = os.path.abspath(GENERATED_SO)
     try:
         plugin = ctypes.CDLL(so_path)
@@ -312,29 +306,38 @@ def execute(lln_script_path: str, commands_py_path: str):
                 print(f"Unknown command function ptr {fn_ptr_val}, skipping")
             else:
                 args = unpack_args(c.contents.args)
-            pyfn(*args)
+                pyfn(*args)
             c = next_comm(ctypes.byref(l), ctypes.byref(callables))
 
     except subprocess.CalledProcessError as e:
         print(f"[{__name__}] LLinal execution failed!\nSTDOUT:\n{e.stdout}\nSTDERR:\n{e.stderr}", file=sys.stderr)
         sys.exit(1)
 
-def lln_run(lln_script_path: str, commands_py_path: str):
-    spec = importlib.util.spec_from_file_location("user_commands", commands_py_path)
-    if not spec:
-        raise ImportError(f"Cannot find {commands_py_path}")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+def lln_run(lln_script_path: str, commands_py_path: Optional[Path] = None, reset: bool = True):
+    if commands_py_path is not None:
+        if reset:
+            global commands
+            commands = {}
+        spec = importlib.util.spec_from_file_location("user_commands", commands_py_path)
+        if spec is None or spec.loader is None:
+            raise ImportError(f"Cannot find {commands_py_path}")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
 
-    if _LOG:
-        print(f"[{__name__}] Loaded commands from {commands_py_path}")
+        if _LOG:
+            print(f"[{__name__}] Loaded commands from {commands_py_path}")
+    else:
+        commands_py_path = Path(__file__)
 
-    compile(commands_py_path, GENERATED_SO)
-    execute(lln_script_path, commands_py_path)
+    if needs_rebuild(commands_py_path, GENERATED_SO):
+        if _LOG:
+            print(f"[{__name__}] Commands changed or plugin not found. Regenerating and recompiling...")
+        compile(commands_py_path, GENERATED_SO)
+    execute(lln_script_path)
 
 # ===== Command registration =====
 
-commands = {}
+commands: dict = {}
 def lln_cmd(name=None):
     def decorator(fn):
         source_file = inspect.getfile(fn)
@@ -370,7 +373,7 @@ def gen_decl(f, cmd):
 
     f.write(f"void *__py_gen_{cmd["fn"].__name__}({args})")
 
-def write_c_file(output_c: str):
+def write_c_file(output_c: Path):
     with open(output_c, 'w') as f:
         f.write("#include <lln/lln.h>\n\n")
 
