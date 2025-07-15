@@ -57,7 +57,7 @@ https://github.com/user-attachments/assets/60949c97-c63d-4421-8f2b-0183f321b7a6
 * **Strict Signature Validation:** Validates argument types and counts at runtime against declared C functions.
 * **Modular Plugin System:** Commands are compiled as shared objects (`.so`) and loaded dynamically, enabling flexible extension.
 * **Custom Preprocessor:** Automates command registration and argument signature extraction from C source files.
-* **LLM-Friendly Syntax:** Treats any line not starting with `!` as a comment, enabling natural language or reasoning interleaved with executable commands.
+* **LLM-Friendly Syntax:** Treats any text not starting with `!` as a comment, enabling natural language or reasoning interleaved with executable commands.
 
 ---
 
