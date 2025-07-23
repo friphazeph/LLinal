@@ -1,76 +1,67 @@
-import os, hashlib, importlib.util, inspect, subprocess, sys
-from pathlib import Path
+import subprocess
+import inspect
 from typing import Optional
-LLN_BUILD_DIR = Path("lln_build")
-LLN_BUILD_DIR.mkdir(exist_ok=True)
-GENERATED_SO = LLN_BUILD_DIR / "lln-py-plugin.so"
-C_GEN_FILE = LLN_BUILD_DIR / "lln-py.gen.c"
-CHECKSUM_FILE = LLN_BUILD_DIR / ".lln-py.checksum"
-_LOG = False
-
+from pathlib import Path
+from tempfile import NamedTemporaryFile
 from shutil import which
+import os
+
 if which("lln") is None:
     raise RuntimeError("'lln' executable not found in PATH, please install LLinal.")
 
+from typing import Any, IO
+type Command = dict[str, Any]
+type Commands = dict[str, Command]
+global_commands: Commands = {}
+
 # ===== Plugin generation =====
 
-def calculate_checksum(filepath):
-    if not os.path.exists(filepath):
-        return None
-    with open(filepath, 'rb') as f:
-        return hashlib.md5(f.read()).hexdigest()
-
-def gen_c(output_c: Path):
-    write_c_file(output_c)
-
-    if _LOG:
-        print(f"[{__name__}] Generated C wrapper: {output_c}")
-
-def needs_rebuild(commands_py_path: Path, output_so: Path) -> bool:
-    current_checksum = calculate_checksum(commands_py_path)
-    try:
-        with open(CHECKSUM_FILE, 'r') as f:
-            previous_checksum = f.read().strip()
-    except FileNotFoundError:
-        return True
-    return not os.path.exists(output_so) or current_checksum != previous_checksum
-
-def store_checksum(commands_py_path: Path):
-    with open(CHECKSUM_FILE, 'w') as f:
-        f.write(calculate_checksum(commands_py_path))
+LLN_BUILD_DIR: Path = Path("./.lln-build/")
 
 def compile_plugin(c_file: Path, output_so: Path):
     compile_cmd = [
         "lln", "-co", str(c_file), str(output_so)
     ]
-    if _LOG:
-        print(f"[{__name__}] Compiling with: {' '.join(compile_cmd)}")
 
-    subprocess.run(compile_cmd, check=True, capture_output=True, text=True)
+    subprocess.run(compile_cmd, check=True)
 
-    if _LOG:
-        print(f"[{__name__}] Successfully compiled {output_so}")
+def hash_name(commands: Commands) -> str:
+    return "lln_build.so" # TODO
 
-def raise_runtime(message: str):
-    raise RuntimeError(f"[{__name__}] {message}")
+def get_plugin(commands: Commands) -> Path:
+    if not LLN_BUILD_DIR.exists():
+        LLN_BUILD_DIR.mkdir()
 
-def compile(commands_py_path: Path, output_so: Path):
+    so_path = LLN_BUILD_DIR / hash_name(commands) # TODO: generate this procedurally correctly
 
-    gen_c(C_GEN_FILE)
+    if not so_path.exists():
+        with NamedTemporaryFile(suffix='.c', mode='w',dir=LLN_BUILD_DIR) as c_file:
+            write_c_file(c_file, commands)
+            compile_plugin(Path(c_file.name), so_path)
 
-    try:
-        compile_plugin(C_GEN_FILE, output_so)
-        store_checksum(commands_py_path)
+    return so_path
 
-    except subprocess.CalledProcessError as e:
-        print(f"[{__name__}] Compilation failed!\nSTDOUT:\n{e.stdout}\nSTDERR:\n{e.stderr}", file=sys.stderr)
-        sys.exit(1)
-    except Exception as e:
-        print(f"[{__name__}] An error occurred during compilation: {e}", file=sys.stderr)
-        sys.exit(1)
+# ----- C gen -----
+
+def write_c_file(f: IO, commands: Commands):
+    f.write("#include <lln/lln.h>\n\n")
+
+    for name, cmd in commands.items():
+        f.write(f"// @cmd {name}\n")
+        args = ""
+        for i, t in enumerate(cmd['c_types']):
+            args += f"{t} a{i}, "
+        args = args[:-2]
+        f.write(f"void *__py_gen_{cmd['fn'].__name__}({args})")
+        f.write("{\n")
+        f.write("\t// this is a placeholder function, its pointer is never called.\n")
+        f.write("\treturn NULL;\n")
+        f.write("}\n")
+    f.flush()
 
 # ===== Execution =====
 
+# ----- ctypes def -----
 import ctypes, ctypes.util
 
 # typedef enum {
@@ -83,17 +74,10 @@ import ctypes, ctypes.util
 class ArgType(ctypes.c_int):
     pass
 
-# typedef struct {
-# 	lln_ArgType *items;
-# 	size_t count;
-# 	size_t capacity;
-# } lln_ArgTypes;
-class ArgTypes(ctypes.Structure):
-    _fields_ = [
-        ("items", ctypes.POINTER(ArgType)),
-        ("count", ctypes.c_size_t),
-        ("capacity", ctypes.c_size_t),
-    ]
+ARG_INT = 0
+ARG_FLT = 1
+ARG_STR = 2
+ARG_BOOL = 3
 
 # typedef union {
 # 	int i;
@@ -166,178 +150,56 @@ class Comm(ctypes.Structure):
         ("f", CommandFnPtr),
     ]
 
-# typedef struct {
-# 	const char *name;
-# 	lln_ArgTypes signature;
-#
-# 	lln_CommandFnPtr fnptr;
-# } lln_Callable;
-class Callable(ctypes.Structure):
-    _fields_ = [
-        ("name", ctypes.c_char_p),
-        ("signature", ArgTypes),
-        ("fnptr", CommandFnPtr),
-    ]
+# ----- run lln file -----
 
-# typedef struct {
-# 	lln_Callable *items;
-# 	size_t count;
-# 	size_t capacity;
-# 	void (* pre)(void);
-# 	void (* post)(void);
-# } lln_Callables;
-class Callables(ctypes.Structure):
-    _fields_ = [
-        ("items", ctypes.POINTER(Callable)),
-        ("count", ctypes.c_size_t),
-        ("capacity", ctypes.c_size_t),
-        ("pre", ctypes.CFUNCTYPE(None)),
-        ("post", ctypes.CFUNCTYPE(None)),
-    ]
-
-# typedef struct {
-# 	char *content;
-# 	size_t len;
-# 	size_t cap;
-# } lln_StringBuilder;
-class StringBuilder(ctypes.Structure):
-    _fields_ = [
-        ("content", ctypes.c_char_p),
-        ("len", ctypes.c_size_t),
-        ("cap", ctypes.c_size_t),
-    ]
-
-# typedef struct {
-# 	Loc loc;
-# 	char *start;
-# 	size_t len;
-# 	TokKind kind;
-# 	char *text_view;
-# } Token;
-class Token(ctypes.Structure):
-    _fields_ = [
-        ("loc", Loc),
-        ("start", ctypes.c_char_p),
-        ("len", ctypes.c_size_t),
-        ("kind", ctypes.c_int),
-        ("text_view", ctypes.c_char_p),
-    ]
-
-# typedef struct {
-# 	const char *content;
-# 	char *cur;
-# 	Loc loc;
-# 	Token tok;
-# 	StringBuilder sb_tok_text;
-# 	Comm comm;
-# } Lexer;
-class Lexer(ctypes.Structure):
-    _fields_ = [
-        ("content", ctypes.c_char_p),
-        ("cur", ctypes.c_char_p),
-        ("loc", Loc),
-        ("tok", Token),
-        ("sb_tok_text", StringBuilder),
-        ("comm", Comm),
-    ]
-
-def unpack_args(args_struct: Args):
+def unpack_args(c_args: Args):
     py_args = []
-    for i in range(args_struct.count):
-        arg = args_struct.items[i]
+    for i in range(c_args.count):
+        arg = c_args.items[i]
         t = arg.type.value
         v = arg.value
-        if t == 0:  # ARG_INT
+        if   t == ARG_INT:
             py_args.append(v.i)
-        elif t == 1:  # ARG_FLT
+        elif t == ARG_FLT:
             py_args.append(v.f)
-        elif t == 2:  # ARG_STR
+        elif t == ARG_STR:
             py_args.append(v.s.decode() if v.s else None)
-        elif t == 3:  # ARG_BOOL
+        elif t == ARG_BOOL:
             py_args.append(bool(v.b))
         else:
             raise ValueError(f"Unknown arg type {t}")
     return py_args
 
-def execute(lln_script_path: str):
-    so_path = os.path.abspath(GENERATED_SO)
-    try:
-        plugin = ctypes.CDLL(so_path)
-        plugin.__lln_preproc_register_commands.argtypes = []
-        plugin.__lln_preproc_register_commands.restype = None
-        plugin.__lln_preproc_register_commands()
-        callables = Callables.in_dll(plugin, "__lln_preproc_callables")
-        # print(callables.count)
-
-        c_to_py_fn = {}
-        for i in range(callables.count):
-            call = callables.items[i]
-            cfn = ctypes.cast(call.fnptr, ctypes.c_void_p).value
-            c_to_py_fn[cfn] = commands[call.name.decode()]["fn"]
-        
-        liblln = ctypes.util.find_library("lln")
-        if liblln == None:
-            print("Could not find liblln.")
-            exit(1)
-        clln = ctypes.CDLL(liblln)
-        # StringBuilder file = {0};
-        # read_whole_file(&file, filename);
-        file = StringBuilder()
-        clln.lln_read_whole_file.argtypes = [ctypes.POINTER(StringBuilder), ctypes.c_char_p]
-        clln.lln_read_whole_file.restype = None
-        clln.lln_read_whole_file(ctypes.byref(file), lln_script_path.encode("utf-8"))
-        # Lexer l = {0};
-        # lexer_init(&l, file.content, filename);
-        l = Lexer()
-        clln.lexer_init.argtypes = [ctypes.POINTER(Lexer), ctypes.c_char_p, ctypes.c_char_p]
-        clln.lexer_init.restype = None
-        clln.lexer_init(ctypes.byref(l), file.content, lln_script_path.encode("utf-8"))
-
-        # Comm *lexer_next_valid_comm(Lexer *l, const Callables *c)
-        clln.lexer_next_valid_comm.argtypes = [ctypes.POINTER(Lexer), ctypes.POINTER(Callables)]
-        clln.lexer_next_valid_comm.restype = ctypes.POINTER(Comm)
-        next_comm = clln.lexer_next_valid_comm
-        c = next_comm(ctypes.byref(l), ctypes.byref(callables))
-        while c:
-            # print(f"Lexer token kind: {l.tok.kind}")
-            fn_ptr_val = ctypes.cast(c.contents.f, ctypes.c_void_p).value
-            pyfn = c_to_py_fn.get(fn_ptr_val)
-            if pyfn is None:
-                print(f"Unknown command function ptr {fn_ptr_val}, skipping")
-            else:
-                args = unpack_args(c.contents.args)
-                pyfn(*args)
-            c = next_comm(ctypes.byref(l), ctypes.byref(callables))
-
-    except subprocess.CalledProcessError as e:
-        print(f"[{__name__}] LLinal execution failed!\nSTDOUT:\n{e.stdout}\nSTDERR:\n{e.stderr}", file=sys.stderr)
-        sys.exit(1)
-
-def lln_run(lln_script_path: str, commands_py_path: Optional[Path] = None, reset: bool = True):
-    if commands_py_path is not None:
-        if reset:
-            global commands
-            commands = {}
-        spec = importlib.util.spec_from_file_location("user_commands", commands_py_path)
-        if spec is None or spec.loader is None:
-            raise ImportError(f"Cannot find {commands_py_path}")
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-
-        if _LOG:
-            print(f"[{__name__}] Loaded commands from {commands_py_path}")
+def load_commands(py_commands_path: Optional[Path]) -> Commands:
+    if py_commands_path is not None:
+        raise RuntimeError("Not implemented")
     else:
-        commands_py_path = Path(__file__)
+        return global_commands
 
-    if needs_rebuild(commands_py_path, GENERATED_SO):
-        if _LOG:
-            print(f"[{__name__}] Commands changed or plugin not found. Regenerating and recompiling...")
-        compile(commands_py_path, GENERATED_SO)
-    execute(lln_script_path)
+# load lln globally
+lln_path = ctypes.util.find_library('lln')
+lln = ctypes.CDLL(lln_path)
+
+def lln_run(lln_script_path: str, py_commands_path: Optional[Path] = None):
+    commands = load_commands(py_commands_path)
+    so_path = str(get_plugin(commands))
+    lln.load_plugin(ctypes.c_char_p(
+        so_path.encode('utf-8')
+    ))
+    lln.load_file(ctypes.c_char_p(
+        lln_script_path.encode('utf-8')
+    ))
+
+    lln.next_comm.restype = ctypes.POINTER(Comm)
+    comm: ctypes.POINTER(Comm) = lln.next_comm()
+    while comm:
+        args = unpack_args(comm.contents.args)
+        py_fn = commands[comm.contents.name.decode()]['fn']
+        py_fn(*args)
+        comm = lln.next_comm()
 
 # ===== Command registration =====
 
-commands: dict = {}
 def lln_cmd(name=None):
     def decorator(fn):
         source_file = inspect.getfile(fn)
@@ -345,7 +207,7 @@ def lln_cmd(name=None):
         c_types = []
         for p in sig.parameters.values():
             if p.annotation == str:
-                c_types.append("char* ")
+                c_types.append("char *")
             elif p.annotation == int:
                 c_types.append("int")
             elif p.annotation == float:
@@ -355,33 +217,15 @@ def lln_cmd(name=None):
             else:
                 raise TypeError(f"ERROR: LLN: Unsupported arg type {p.annotation}. Supported types: 'str', 'int', 'float', 'bool'")
 
-        cmd_name = name or f"!{fn.__name__}"
+        cmd_name: str = name or f"!{fn.__name__}"
         if cmd_name[0] != '!':
             raise Error(f"ERROR: LLN: command names must start with a '!'")
-        commands[cmd_name] = {
-            "fn": fn,
-            "c_types": c_types,
+
+        global_commands[cmd_name] = {
+            'fn': fn,
+            'c_types': c_types,
         }
         return fn
+
     return decorator
 
-def gen_decl(f, cmd):
-    args = ""
-    for i, t in enumerate(cmd["c_types"]):
-        args += f"{t} a{i}, "
-    args = args[:-2]
-
-    f.write(f"void *__py_gen_{cmd["fn"].__name__}({args})")
-
-def write_c_file(output_c: Path):
-    with open(output_c, 'w') as f:
-        f.write("#include <lln/lln.h>\n\n")
-
-        for name, cmd in commands.items():
-            f.write(f"// @cmd {name}\n")
-            gen_decl(f, cmd)
-            f.write("{\n")
-            f.write("\t// this is a placeholder function, its pointer is never called\n")
-            f.write("\t// it is only used for command registration\n")
-            f.write("\treturn NULL;\n")
-            f.write("}\n")

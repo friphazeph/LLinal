@@ -1,6 +1,7 @@
 #define LLN_STRIP_PREFIX
 #include "lln.h"
 #include "lln-internal.h"
+#include <dlfcn.h>
 
 // ===== UTILS =====
 
@@ -625,3 +626,50 @@ void run_lln_file(const char *filename, const Callables *c) {
 	lexer_free(&l);
 }
 
+// ----- FFI -----
+
+// globals
+StringBuilder g_file;
+Lexer g_l;
+Comm *g_comm;
+Callables *g_calls;
+
+void load_file(const char *filename) {
+	free(g_file.content);
+	read_whole_file(&g_file, filename);
+	lexer_free(&g_l);
+	lexer_init(&g_l, g_file.content, filename);
+}
+
+Comm *next_comm() {
+	g_comm = lexer_next_valid_comm(&g_l, g_calls);
+	return g_comm;
+}
+
+void load_plugin(char *so_path) {
+	StringBuilder sb_so_path = {0};
+	if (so_path[0] != '/' && strncmp(so_path, "./", 2) != 0 && strncmp(so_path, "../", 3) != 0) {
+		sb_append_cstr(&sb_so_path, "./");
+	}
+	sb_append_cstr(&sb_so_path, so_path);
+	sb_term(&sb_so_path);
+	void *handle = dlopen(sb_so_path.content, RTLD_LAZY | RTLD_GLOBAL);
+	free(sb_so_path.content);
+	if (!handle) {
+		fprintf(stderr, "%s\n", dlerror());
+		exit(1);
+	}
+	dlerror();
+	void (*reg_comms)(void);
+	*(void **)(&reg_comms) = dlsym(handle, "__lln_preproc_register_commands");
+	if (!reg_comms) {
+		fprintf(stderr, "%s\n", dlerror());
+		exit(1);
+	}
+	g_calls = (Callables *) dlsym(handle, "__lln_preproc_callables");
+	if (!g_calls) {
+		fprintf(stderr, "%s\n", dlerror());
+		exit(1);
+	}
+	(*reg_comms)();
+}
