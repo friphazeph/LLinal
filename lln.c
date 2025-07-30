@@ -635,9 +635,8 @@ Comm *g_comm;
 Callables *g_calls;
 
 void load_file(const char *filename) {
-	free(g_file.content);
+	g_file.len = 0;
 	read_whole_file(&g_file, filename);
-	lexer_free(&g_l);
 	lexer_init(&g_l, g_file.content, filename);
 }
 
