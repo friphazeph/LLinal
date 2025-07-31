@@ -455,8 +455,12 @@ Comm *lexer_next_command(Lexer *l) {
 // ----- validation -----
 
 Callable *name_to_callable(const char *name, const Callables *cs) {
+	if (!cs) {
+		fprintf(stderr, "Callables pointer is NULL\n");
+		return NULL;
+	}
 	size_t len = strlen(name);
-    for (size_t i = 0; cs->items[i].name != NULL; i++) {
+    for (size_t i = 0; i < cs->count; i++) {
         size_t key_len = strlen(cs->items[i].name);
         if (key_len == len && strncmp(name, cs->items[i].name, len) == 0)
             return &cs->items[i];
@@ -632,20 +636,21 @@ void run_lln_file(const char *filename, const Callables *c) {
 StringBuilder g_file;
 Lexer g_l;
 Comm *g_comm;
-Callables *g_calls;
 
 void load_file(const char *filename) {
 	g_file.len = 0;
 	read_whole_file(&g_file, filename);
+	g_l = (Lexer) {0};
 	lexer_init(&g_l, g_file.content, filename);
 }
 
-Comm *next_comm() {
-	g_comm = lexer_next_valid_comm(&g_l, g_calls);
+Comm *next_comm(Callables *c) {
+	g_comm = lexer_next_valid_comm(&g_l, c);
 	return g_comm;
 }
 
-void load_plugin(char *so_path) {
+// Actually returns a Callables *, but can be opaque
+Callables *load_plugin(char *so_path) {
 	StringBuilder sb_so_path = {0};
 	if (so_path[0] != '/' && strncmp(so_path, "./", 2) != 0 && strncmp(so_path, "../", 3) != 0) {
 		sb_append_cstr(&sb_so_path, "./");
@@ -665,10 +670,11 @@ void load_plugin(char *so_path) {
 		fprintf(stderr, "%s\n", dlerror());
 		exit(1);
 	}
-	g_calls = (Callables *) dlsym(handle, "__lln_preproc_callables");
-	if (!g_calls) {
+	Callables *calls = (Callables *) dlsym(handle, "__lln_preproc_callables");
+	if (!calls) {
 		fprintf(stderr, "%s\n", dlerror());
 		exit(1);
 	}
 	(*reg_comms)();
+	return calls;
 }
