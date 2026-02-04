@@ -99,7 +99,7 @@ lln -rc [input_file.lln] [input_file.c]
 
 Commands are defined as C functions in `.c` files, registered with the `// @cmd` annotation or the `LLN_declare_command` macro.
 
-Example (`src/commands/my_printer.c`):
+Example:
 
 ```c
 #include <lln/lln.h>
@@ -127,7 +127,6 @@ lln -co src/commands/my_printer.c my_commands.so
 2. Create a `.lln` script, e.g., `hello.lln`:
 
 ```lln
-# Comments start with '#'
 !printf("Hello, world!", 42)
 !printf("The answer is", 42)
 ```
